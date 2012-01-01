@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2004-2005 Universite de Nantes (LINA)
- * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,16 +14,19 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
+
+import org.objectweb.fractal.fscript.diagnostics.Diagnostic;
+import org.objectweb.fractal.fscript.diagnostics.DiagnosticCollector;
 
 /**
  * This exception is thrown when at least one fatal error is detected on a script before
  * its actual execution. This can occur for exemple during the initial parsing or any of
  * the validation steps performed after parsing but before the script has been invoked.
  * 
- * @author Pierre-Charles David <pcdavid@gmail.com>
+ * @author Pierre-Charles David
  */
 public class InvalidScriptException extends FScriptException {
     public InvalidScriptException(Diagnostic diagnostic) {

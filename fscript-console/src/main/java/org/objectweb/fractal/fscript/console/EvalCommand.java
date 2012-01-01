@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,25 +20,14 @@
  */
 package org.objectweb.fractal.fscript.console;
 
-import org.objectweb.fractal.fscript.FScriptInterpreter;
-import org.objectweb.fractal.fscript.expressions.Expression;
-
+/**
+ * This command evaluates an FPath expression and prints the result.
+ * 
+ * @author Pierre-Charles David
+ */
 public class EvalCommand extends AbstractCommand {
-	public EvalCommand(Console console, FScriptInterpreter fscript) {
-		super(console, fscript);
-	}
-
-	public String getName() {
-		return "eval";
-	}
-
-	public String getDescription() {
-		return "Evaluates an FPath expression.";
-	}
-
-	public void execute(String expression) throws Exception {
-		Expression expr = fscript.parseExpression(expression);
-		Object result = fscript.evaluate(expr, null);
-		console.printResult(result);
-	}
+    public void execute(String expression) throws Exception {
+        Object result = engine.execute(expression);
+        showResult(result);
+    }
 }

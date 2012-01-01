@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 ARMINES
+ * Copyright (c) 2007-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -25,22 +25,38 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Set;
 
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
 import org.objectweb.fractal.api.Component;
 import org.objectweb.fractal.api.Interface;
 import org.objectweb.fractal.api.NoSuchInterfaceException;
 import org.objectweb.fractal.api.type.ComponentType;
 import org.objectweb.fractal.api.type.InterfaceType;
-import org.objectweb.fractal.fscript.nodes.ComponentNode;
-import org.objectweb.fractal.fscript.nodes.ComponentNodeImpl;
-import org.objectweb.fractal.fscript.nodes.InterfaceNode;
-import org.objectweb.fractal.fscript.nodes.Node;
+import org.objectweb.fractal.fscript.model.Node;
+import org.objectweb.fractal.fscript.model.fractal.ComponentNode;
+import org.objectweb.fractal.fscript.model.fractal.InterfaceNode;
+import org.objectweb.fractal.fscript.model.fractal.NodeFactory;
 
 /**
- * @author Pierre-Charles David <pcdavid@gmail.com>
+ * @author Pierre-Charles David
  */
-public class CollectionBindingsTest {
+public class CollectionBindingsTest extends FractalTestCase {
+    private FScriptEngine engine;
+    
+    private NodeFactory nodeFactory;
+
+    private Component fscript;
+
+    private ScriptLoader loader;
+
+    @Before
+    public void setUp() throws Exception {
+        fscript = FScript.newEngine();
+        engine = FScript.getFScriptEngine(fscript);
+        loader = FScript.getScriptLoader(fscript);
+        nodeFactory = FScript.getNodeFactory(fscript);
+    }
+
     private Reader fixture(String name) {
         InputStream stream = CollectionBindingsTest.class.getResourceAsStream(name);
         return new InputStreamReader(stream);
@@ -48,17 +64,15 @@ public class CollectionBindingsTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void addCommancheHandler() throws FScriptException {
-        FScriptInterpreter fscript = new FScriptInterpreter();
-        fscript.loadDefinitions(fixture("add-handler.fscript"));
-        Node comanche = fscript.createComponentNode(FactoryHelper.newComanche());
-        Node errHandler = fscript.createComponentNode(FactoryHelper
-                .newComponent("comanche.ErrorHandler"));
-        fscript.apply("add-handler", new Object[] { comanche, errHandler });
-        Object result = fscript.apply("all-handlers", new Object[] { comanche });
+    public void addCommancheHandler() throws Exception {
+        loader.load(fixture("add-handler.fscript"));
+        Node comanche = nodeFactory.createComponentNode(new ComancheHelper().comanche);
+        Node errHandler = nodeFactory.createComponentNode(newComponent("comanche.ErrorHandler"));
+        engine.invoke("add-handler", comanche, errHandler);
+        Object result = engine.invoke("all-handlers", comanche);
         assertTrue(result instanceof Set);
         Set<Node> itfs = (Set<Node>) result;
-        assertEquals(3, itfs.size());
+        assertEquals(4, itfs.size());
         boolean h0 = false, h1 = false, h2 = false;
         for (Node node : itfs) {
             InterfaceNode itf = (InterfaceNode) node;
@@ -74,19 +88,16 @@ public class CollectionBindingsTest {
             }
         }
         assertTrue(h0 && h1 && h2);
-        
     }
 
-    @Ignore("This test was just to make sure I understand how collection interfaces work.")
     @SuppressWarnings("unchecked")
     @Test
-    public void createNewCollectionInterfaceInstanceFromFScript()
-            throws FScriptException, NoSuchInterfaceException {
-        FScriptInterpreter fscript = new FScriptInterpreter();
-        ComponentNode comanche = fscript.createComponentNode(FactoryHelper.newComanche());
-        Set<Node> nodes = (Set) fscript.evaluateFrom("./child::be/child::rh/child::rd",
-                comanche);
-        ComponentNodeImpl rd = (ComponentNodeImpl) nodes.iterator().next();
+    public void createNewCollectionInterfaceInstanceFromFScript() throws Exception,
+            NoSuchInterfaceException {
+        ComponentNode comanche = nodeFactory.createComponentNode(new ComancheHelper().comanche);
+        engine.setGlobalVariable("c", comanche);
+        Set<Node> nodes = (Set) engine.execute("$c/child::be/child::rh/child::rd");
+        ComponentNode rd = (ComponentNode) nodes.iterator().next();
         Component c = rd.getComponent();
         for (Object o : c.getFcInterfaces()) {
             Interface itf = (Interface) o;

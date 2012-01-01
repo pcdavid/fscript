@@ -1,0 +1,1229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<book>
+  <title>FPath and FScript Reference Manual</title>
+  <bookinfo>
+    <author>
+      <firstname>Pierre-Charles</firstname>
+      <surname>David</surname>
+      <email>pcdavid@gmail.com</email>
+    </author>
+  </bookinfo>
+
+  <chapter id="introduction">
+    <title>Introduction</title>
+
+    <para>This document is the reference manual for the FPath and FScript Domain-Specific
+    Languages. Both languages where orignally designed to make it easier to deal with
+    software systems built using the Fractal Component Model. More specifically:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>FPath is a <emphasis>navigation</emphasis> language for software
+        architectures. An FPath expression is a query which is run against a set of
+        components or other architectural elements, returning the set of elements (for
+        example components or interfaces) which match the query.</para>
+      </listitem>
+      <listitem>
+        <para>FScript is a language to program architectural
+        <emphasis>reconfigurations</emphasis> of software systems. It builds upon FPath to
+        select the elements which must be reconfigured, but otherwise looks like a simple
+        <quote>scripting language</quote>, with a few restrictions. These restrictions are
+        designed so that it is possible to guarantee that FScript reconfigurations are
+        <quote>well-behaved</quote>.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Starting with version 2.0, FPath and FScript are not Fractal-specific anymore.
+    The languages's definitions and implementations have been redesigned to use more
+    general concepts, which can be adapted to other component models, or any architectural
+    model which can represent a software system in a strutured way. Fractal is still the
+    main use case and the default, built-in model provided by the actual implementation.
+    It is the only concrete <quote>projection</quote> discussed in this manual.</para>
+
+    <para>Note that the languages are not designed to <emphasis>implement</emphasis>
+    components (Fractal or otherwise) , but to introspect and manipulate (instantiate,
+    reconfigure) already implemented architectures.</para>
+
+    <para>In the case of Fractal, FPath and FScript only deal with the aspects of
+    components described in the Fractal model specification. In particular, they do not
+    expose or allow to manipulate implementation-specific information (e.g. the internal
+    structure of a membrane) or business-level behaviour and state (except insofar that
+    this state is exposed using standard Fractal interfaces). The current version of
+    FScript has the additional limitation that it relies on Fractal ADL descriptors to
+    instantiate new components dynamically. This limitation may be removed in the
+    future.</para>
+
+    <para>This document use the default Fractal <quote>backend</quote> to illustrate the
+    generic language concepts, and thus assumes a good knowledge of the Fractal model. See
+    the reference manual or the official web site at <ulink
+    url="http://fractal.objectweb.org/"/> for details about Fractal.</para>
+
+    <para>This document only describes the languages syntax and semantics. Instructions on
+    how to use the standard implementation to invoke FPath and FScript programs from Java
+    can be found in the implementation's Javadoc and in the <ulink
+    url="tutorial-apis.html">Java APIs tutorial</ulink>.</para>
+
+  </chapter>
+
+  <chapter id="fpath">
+    <title>FPath</title>
+
+    <para>This first chapter describes the FPath language, which is a strict subset of
+    FScript. FPath is the language used for <emphasis>expressions</emphasis> in FScript,
+    which compute a value but do not modify the target system (i.e. they are side-effects
+    free). FScript itself uses FPath, but adds control structures and reconfigurations
+    actions to define complex reconfigurations of the target architecture. FScript is
+    presented in the next chapter.</para>
+
+    <para>FPath is an expression language to query live architectures. By
+    <emphasis>expression language</emphasis> we mean that FPath is side-effect free:
+    executing an FPath program can not modify the target system. By
+    <emphasis>query</emphasis> we mean that an FPath expression is used to select
+    architectural elements in a target system according to some criteria. By
+    <emphasis>live architectures</emphasis> we mean that FPath is primarily designed to
+    target applications at run-time, not static descriptions (source code, ADL files,
+    etc.).</para>
+
+    <para>The main design objectives of FPath were to provide a compact, easy to read
+    language to navigate inside software architectures (initially only Fractal) and query
+    them. A second objective was to keep the language (especially its syntax) extensible.
+    Originally this need for extensiblity was because Fractal itself is very extensible,
+    and we wanted to be able to support future versions and extensions of the model.
+    However the syntax and underlying model we chose is so generic that starting from
+    FPath 2.0, it is possible to use them for other models (one experiment for example is
+    able to query MBeans in JMX-enabled systems).</para>
+
+    <para>Both the syntax and the execution model of FPath are inspired by the XPath
+    language. XPath is the standard query language for XML documents defined by the W3C,
+    used by many other XML technologies (XLink, XSLT, XQuery...). XPath is defined on an
+    abstract representation of XML documents as sets of nodes which represent the content
+    of an XML document (elements, attributes, textual content...), and relations between
+    these nodes which represent its structure (an element contains another, which itself
+    has some attributes). XPath expressions can navigate along these relations to select
+    the nodes representing parts of the document based either on their properties or their
+    location in the document. It should be noted however that although FPath is
+    <emphasis>inspired</emphasis> by XPath, it is not <emphasis>implemented</emphasis>
+    using XPath, and does not use any XML representation of Fractal architectures.</para>
+
+    <para>In addition to the path expressions used to navigate inside the architecture,
+    FPath also supports more standard kinds of expressions and primitive values, and a
+    standard library of functions to operate on those. In the rest of this chapter, we
+    first describe primitive values and expressions before going into the details of nodes
+    and path expressions.</para>
+
+    <sect1 id="std-expressions">
+      <title>Primitive Values and Expressions</title>
+
+      <sect2 id="numbers">
+        <title>Numbers and arithmetic operations</title>
+
+        <para>FPath supports only one kind of numbers, which correspond to Java's
+        <type>double</type> type. They have the following literal syntax:</para>
+
+        <programlisting>[+-]?[0-9]+(.[0-9]*)?</programlisting>
+
+        <para>Numbers without a decimal part are automatically converted to floating point
+        representation, and all operations in FPath are done using
+        <type>double</type>s.</para>
+
+        <para>The four arithmetic operations (addition, substraction, multiplication,
+        division) are available, with the standard precendence rules, but the division
+        operator is <token>div</token> instead of <token>/</token> to avoid confusion with
+        the path separator (see below). Their semantics is the same as in Java, including
+        the treatment of negative zero, infinities, and NaN results. A division by zero
+        aborts the evaluation of the whole FPath expression with an error.</para>
+
+        <programlisting>
+3+4*5         => 23.0
+(3+4)*5       => 35.0
+3 div 4       =>  0.75
+3 * -1.0 + 7  =>  4.0</programlisting>
+
+      </sect2>
+
+      <sect2 id="strings">
+        <title>Strings</title>
+
+        <para>FPath supports Unicode strings as a base data type, and provides a set of
+        standard functions to operate on them. Both single-quoted and double-quoted string
+        literals are supported, with standard escape characters <literal>\n</literal>,
+        <literal>\r</literal>, <literal>\t</literal>, <literal>\"</literal>,
+        <literal>\'</literal> and <literal>\\</literal>. For example:</para>
+
+        <programlisting>
+"a simple string"
+'another one'
+""
+'He said "Hello".'
+'It\'s not what I expected...\n'</programlisting>
+
+      </sect2>
+
+      <sect2 id="booleans">
+        <title>Booleans</title>
+
+        <para>FPath supports booleans and the corresponding operations. There is no
+        literal syntax for boolean values, but they can be obtained by calling the
+        built-in functions <function>true()</function> and
+        <function>false()</function>.</para>
+
+        <para>The boolean operations supported are: conjunction, disjunction and negation.
+        The first two are supported through the operator <token>&amp;&amp;</token> and
+        <token>||</token>, conjunction having a higher priority. Negation is supported
+        using the predefined function <function>not()</function>. For example:</para>
+
+        <programlisting>
+true() &amp;&amp; false()                  => false()
+true() || false() &amp;&amp; true()        => true()
+not(true() &amp;&amp; false()) || true()   => true()</programlisting>
+
+      </sect2>
+
+      <sect2 id="variables">
+        <title>Variables</title>
+
+        <para>Although FPath expression can not <emphasis>define</emphasis> variables or
+        change variables values, they can <emphasis>use</emphasis> variables defined
+        elsewhere. When using FPath as a standalone query language, variable definition is
+        done in the client Java program using the FScript API (not specified here). When
+        using FPath as part of FScript, variables can be defined and modified by the
+        enclosing FScript program.</para>
+
+        <para>Referencing a variable is done by prefixing its name with a dollar sign
+        (<token>$</token>):</para>
+
+        <programlisting>
+$var
+$x3
+$a_long_variable_name
+$anotherOneInADifferentStyle
+$yet-another-style
+$_</programlisting>
+
+      </sect2>
+
+      <sect2 id="function-calls">
+        <title>Function calls</title>
+
+        <para>FPath expressions can invoke functions. These functions can be used either
+        to manipulate primitive values (numbers, strings and booleans) or to introspect
+        node values (representing elements in the architecture). However, no function call
+        can modify these architectural elements.</para>
+
+        <para>The syntax of function call is standard: <literal>function_name(arg0, arg1,
+        ..., argN)</literal>. For example:</para>
+
+        <programlisting>
+not(true())            => false()
+concat("foo", "bar")   => "foobar"</programlisting>
+
+      </sect2>
+
+      <sect2 id="opaque-object-values">
+        <title>Opaque Object Values</title>
+
+        <para>Although they do not have a literal syntax, it is possible for an FPath
+        function to return a raw value from the underlying implementation language (for
+        example an object in Java). These values can be stored in variables and used with
+        compatible, user-defined functions. This is intended to enable convenient
+        extension of the library of functions. For example, one could imagine an extension
+        to support regular expressions matching:</para>
+
+        <programlisting>matches("foo", make-regexp("fo+"))</programlisting>
+
+        <para>Where <function>make-regexp</function> is a user-supplied function which
+        returns a compiled regular expession object as an opaque value which is then used
+        by <function>matches</function>.</para>
+
+        <para>None of the predefined functions produce or use such values.</para>
+
+      </sect2>
+
+      <sect2 id="comparisons">
+        <title>Comparisons</title>
+
+        <para>General equality an inequality tests are available for all primitive and
+        node types, while ordering oprators are available only for numbers. The operators'
+        syntax is the same as in Java: <literal>==</literal>, <literal>!=</literal>,
+        <literal>&lt;</literal>, <literal>&gt;</literal>, <literal>&lt;=</literal> and
+        <literal>&gt;=</literal>:</para>
+
+        <programlisting>
+"foo" != "bar"
+name($itf) == "component"
+1 + 2 == 3
+42 &lt;= 43</programlisting>
+
+      </sect2>
+
+    </sect1>
+
+    <sect1 id="nodes-and-paths">
+      <title>Nodes and Path Expressions</title>
+
+      <sect2 id="graph-model">
+        <title>Graph Representation of Software Architectures</title>
+
+        <para>A sofware architecture (for example a set of Fractal components) is modeled
+        in FPath as a directed graph with labeled arcs. The nodes in the graph are typed
+        and represent the different kinds of architectural entities which are visible in
+        FPath, while the labeled arcs represent their relations. Note that this graph
+        representation is just a model; implementations do not have to use a graph
+        representation of the architecture as long as they conform to the language
+        semantics.</para>
+
+        <para>A particular FPath model defines a standard set of node types, with their
+        properties and relations between them. For example the default model, which
+        represents Fractal architectures, defines three kinds of nodes to represent
+        components, their interfaces, and their configuration attributes, and relations to
+        model component containment, interface bindings, etc. However, neither the
+        semantics nor the syntax of the language is specific to these particular node
+        types and relations. This is the very feature which makes FPath extensible:
+        targetting a different software architecture model is simply a matter of
+        <quote>plugging-in</quote> the definitions of different kinds of nodes and
+        relations. It does not require changes in the syntax or in the
+        implementation.</para>
+
+        <para>The following subsections describe more precisely these notions of nodes,
+        properties and axes (relations between nodes). We use the Fractal model as an
+        example to keep things concrete, but remember than Fractal is just one example of
+        a model which can be targeted by FPath.</para>
+
+      </sect2>
+
+      <sect2 id="nodes">
+        <title>Nodes, node kinds and properties</title>
+
+        <para>Nodes represent elements of interest in an architecture. These do not
+        correspond exactly to the kinds of <quote>objects</quote> reified by the Fractal
+        APIs, but more to the concepts that users want to be able to talk about. For
+        example, Fractal does not have a specific concept of component: the
+        <token>component</token> interface is just one of the standard control interfaces
+        (it is <emphasis>used</emphasis> to identify components, but it is of the same
+        nature as, for example, the <token>content-controller</token> interface). In
+        contrast, FPath has a specific kind of node to represent the components
+        themselves, in addition to the nodes representing their interfaces (including the
+        <token>component</token> interface).</para>
+
+      </sect2>
+
+      <sect2 id="axes">
+        <title>Axes</title>
+
+        <para>The different kinds of nodes defined in the previous section represent the
+        individual elements which are visible in FPath. The <emphasis>structure</emphasis>
+        of the application, i.e. its architecture, is represented by how these elements
+        are connected to each other in a oriented graph. Each arc in the graph is
+        annotated by a label which denotes a particular relation between the two nodes it
+        connects. The different possible relations between nodes are called
+        <emphasis>axes</emphasis>, and each is identified by a label. FPath defines a
+        standard set of axes which include all the relations defined in the Fractal
+        specification which can exist between the pre-defined node types. As for node
+        types, the set of available axes can be extended without changing the language
+        syntax or semantics to take into account extensions to the Fractal model.</para>
+
+      </sect2>
+
+      <sect2 id="nodesets">
+        <title>Nodesets</title>
+
+        <para>A nodeset is a set of node values of the same type (i.e. only component
+        nodes, or attribute nodes, but not component and attribute nodes in the same set).
+        Nodesets are used to offer aggregate operations and avoid explicit loops. For
+        example, path expressions (described in the next section) take nodesets as input
+        and produce nodesets. Functions can also take nodesets as arguments and produce
+        nodesets as a result.</para>
+
+        <para>When a single node value is present in a context where a nodeset value is
+        expected, the node is automatically wrapped in a singleton nodeset. On the other
+        hand, when a nodeset is present in a context where a single node value is
+        expected, then:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>if the nodeset is a singleton, the node it contains is automatically
+            unwrapped;</para>
+          </listitem>
+          <listitem>
+            <para>otherwise, the behaviour depends on the operator or function which
+            expected the node value. It can either:</para>
+            <itemizedlist>
+              <listitem><para>abort with an error;</para></listitem>
+              <listitem><para>if the nodeset is non-empty, select one of the node (based
+              on any criteria) to use as the value to operate on;</para></listitem>
+              <listitem><para>apply itself repeatedly for each of the values in the
+              nodeset (providing an implicit loop).</para></listitem>
+            </itemizedlist>
+          </listitem>
+        </itemizedlist>
+
+      </sect2>
+
+      <sect2 id="path-expressions">
+        <title>Path Expressions</title>
+
+        <para>Path expressions are used to navigate inside the graph structure described
+        in the previous sections. A path is evaluated relative to an <emphasis>initial
+        nodeset</emphasis>, and produces a <emphasis>result nodeset</emphasis> containing
+        the architectural elements matching the query. This evaluation is a multi-step
+        process, each step producing an intermediate nodeset result, which is then used as
+        input to the next step, if any, or as the final result for the last step. Each
+        step is itself (conceptually) split into up to three phases:</para>
+
+        <orderedlist>
+          <listitem>
+            <para><emphasis>selection</emphasis> of a set of candidate nodes, by
+            navigating inside the graph, from each of the initial nodes along a specified
+            axis;</para>
+          </listitem>
+          <listitem>
+            <para>(optional) <emphasis>testing</emphasis> of the candidate nodes on their
+            names;</para>
+          </listitem>
+          <listitem>
+            <para>(optional) <emphasis>filtering</emphasis> of the matching candidates
+            using predicate expressions.</para>
+          </listitem>
+        </orderedlist>
+
+        <para>The set of candidate nodes which match both the name test and all the
+        predicates is the result nodeset for that step.</para>
+
+        <sect3 id="path-syntax">
+          <title>Syntax</title>
+
+          <para>A path expression is made of an initial, non-path, expression whose value
+          will be the initial nodeset, and a sequence of at least one step, each prefixed
+          by a slash character:</para>
+
+          <programlisting><![CDATA[<path> ::= <expression> <steps>
+
+<steps> ::= `/' <step> | `/' <step> <steps>]]></programlisting>
+
+          <para>Each step is itself made of two to three parts: an <emphasis>axis
+          specifier</emphasis>, a <emphasis>test</emphasis>, and an optional sequence of
+          <emphasis>predicates</emphasis>:</para>
+
+          <programlisting><![CDATA[<step> ::= <axis> `::' <test> <opt-predicates>
+
+<axis> ::= <name>
+
+<test> ::= `*' | <name>
+
+<opt-predicates> ::= <empty> | <predicates>
+
+<predicates> ::= `[' <expression> `]' | `[' <expression> `]' <predicates>]]></programlisting>
+
+          <para>Syntaxically, the axis specifier can be any valid identifier. This is what
+          makes FPath extensible in terms of the node types and relations it can handle.
+          Although this specification defines a fixed set of predefined axes
+          (<token>component</token>, <token>child</token>...), the language can handle
+          extensions to the Fractal model which define new relations between components.
+          For example, one could define an <token>aspect</token> axis which connects base
+          components to aspect components which affects them without requiring changes to
+          the FPath language syntax or semantics.</para>
+
+        </sect3>
+
+        <sect3 id="path-semantics">
+          <title>Semantics</title>
+
+          <para>Given a step of the from
+          <literal><parameter>axis</parameter>::<parameter>test</parameter>
+          [<parameter>pred1</parameter>]...[<parameter>predn</parameter>]</literal> and
+          <parameter>current</parameter> the initial nodeset, the result nodeset produced
+          by this step is computed by the following algorithm:</para>
+
+          <orderedlist>
+            <listitem>
+              <para>[S1.] [Initialisation] <literal>result &lt;- {}</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[S2.] [Selection] Select every node connected to any of the current
+              ones through an arc whose label matches the <literal>axis</literal> part:
+              <literal>result &lt;- U { n : c --axis--> n, c in current
+              }</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[S3.] [Test] If the <literal>test</literal> is an identifier (as
+              opposed to <literal>*</literal>), remove from <literal>result</literal> the
+              nodes whose name do not match: <literal>result &lt;- { n in result : name(n)
+              = test }</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[S4.] [Filtering] Only keep the elements for which all predicates
+              hold: <literal>result &lt;- { x in result : pred1(x) and ... and predn(x)
+              }</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[S5.] [End] The algorithm finishes and returns
+              <literal>result</literal>.</para>
+            </listitem>
+          </orderedlist>
+
+          <para>Given a full path of the form <literal>expr/step_1/.../step_n</literal>,
+          the result nodeset produced by the full path is computed by the following
+          algorithm:</para>
+
+          <orderedlist>
+            <listitem>
+              <para>[P1.] [Initialisation] Evaluate the initial expression
+              <literal>expr</literal>, which must produce a nodeset and put the result in
+              <literal>current</literal> (if <literal>expr</literal> produces a single
+              node, it is automatically converted into a singleton nodeset first).
+              <literal>i &lt;- 1</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[P2.] [Step] Evaluate <literal>step_i</literal> using algorithm S
+              above, using <literal>current</literal> as the initial nodeset, and put back
+              the result into <literal>current</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>[P3.] [Loop] Increment <literal>i</literal>: <literal>i &lt;- i +
+              1</literal>. If <literal>i &lt;= n</literal>, goto P2.</para>
+            </listitem>
+            <listitem>
+              <para>[P4.] [End] The algorithm finishes and returns
+              <literal>current</literal> as the value of the full path expression.</para>
+            </listitem>
+          </orderedlist>
+
+        </sect3>
+
+      </sect2>
+
+    </sect1>
+
+  </chapter>
+
+  <chapter id="fscript">
+    <title>FScript</title>
+
+    <sect1 id="proc-def">
+      <title>Procedures Definitions</title>
+
+      <para>An FScript program is made of a sequence of top-level procedure definitions.
+      FScript supports two kinds of procedures: <emphasis>functions</emphasis> and
+      <emphasis>actions</emphasis>. Functions can only use introspection features and are
+      hence guaranteed to be side-effect free. They can be used in FPath expression (for
+      example in predicates) to supplement the standard library of FPath functions.
+      Actions on the other hand are allowed to modify the target architecture. Concretely,
+      the body of a function can use only other functions (be they predefined FPath
+      functions or user-supplied), while actions can make use of functions and other
+      actions (primitives or user-defined).</para>
+
+      <para>The only syntaxic difference between functions and actions appears in their
+      definitions (Note: maybe we should change this to make it clearer by reading source
+      code which calls correspond to pure functions or actions. Maybe something like the
+      <literal>mutation!</literal> convention used by Scheme. On the other hand maybe this
+      would make FScript code too ugly and actually harder to read). Functions are
+      introduced by the keyword <literal>function</literal> while actions use the keyword
+      <literal>action</literal>:</para>
+
+      <programlisting>
+function my-function(<replaceable>parameters</replaceable>) = { <replaceable>body</replaceable> }
+
+action   my-action(<replaceable>parameters</replaceable>) = { <replaceable>body</replaceable> }</programlisting>
+
+      <para>Recursive definitions, direct or indirect, are forbidden:</para>
+
+      <programlisting>
+function f()  = { ...; f(); ...; } -- ERROR: direct recursiion
+
+function f1() = { ...; f2(); ... }
+function f2() = { ...; f1(); ... } -- ERROR: indirect recursiion</programlisting>
+
+      <para>Inside the body of a procedure, the values of the arguments are available as
+      variables with names matching the parameter names in the signature:</para>
+
+<programlisting>
+action do-something(x, y) {
+  do-this($x);
+  do-that($y);
+}</programlisting>
+
+    </sect1>
+
+    <sect1 id="control-structures">
+      <title>Control Structures</title>
+
+      <para>FScript procedures support a limited set of control structures so that it is
+      possible to ensure that they will enventually terminate (there is no bound on the
+      time they can take however).</para>
+
+      <sect2 id="assignment">
+        <title>Variables Assignment</title>
+
+        <para>New local variables can be created inside the body simply by assigning them
+        an initial value:</para>
+
+        <programlisting><replaceable>x</replaceable> = <replaceable>some-expression</replaceable>;</programlisting>
+
+        <para>Variable values can be changed simply by re-assigning them:</para>
+
+        <programlisting><replaceable>x</replaceable> = <replaceable>some-expression</replaceable>;
+... -- do something with $<replaceable>x</replaceable>
+<replaceable>x</replaceable> = <replaceable>another-expression</replaceable>;
+... -- do something else with the new value of $<replaceable>x</replaceable></programlisting>
+
+        <para>Invocation parameters behave exactly like local variable except that they
+        are automatically assigned before entering the body of the procedure. In
+        particular, this means their value can be reassigned:</para>
+
+<programlisting>
+action f(x)  {
+  do-something($x);
+  x = ...;
+  do-something-else($x);
+}
+</programlisting>
+
+      </sect2>
+
+      <sect2 id="sequence">
+        <title>Sequence and Blocks</title>
+
+        <para>Sequences of instructions can be grouped in blocks, where each instruction
+        is ended by a semicolon <literal>;</literal>. Blocks themselves are enclosed in
+        braces <literal>{ ... }</literal>. Blocks can not be introduced anywhere where an
+        instruction is expected; the FScript grammar uses blocks only at certain
+        points:</para>
+
+        <itemizedlist>
+          <listitem><para>the body of a procedure must be a block;</para></listitem>
+          <listitem><para>the <quote>then</quote> and <quote>else</quote> parts of a
+          conditional must be blocks;</para></listitem>
+          <listitem><para>the body of an iteration must be a block.</para></listitem>
+        </itemizedlist>
+
+      </sect2>
+
+      <sect2 id="conditionals">
+        <title>Conditionals</title>
+
+        <para>Conditional execution is supported using the following two
+        constructs:</para>
+
+        <programlisting>
+if (<replaceable>test</replaceable>) {
+  <replaceable>block-body</replaceable>
+}
+
+if (<replaceable>test</replaceable>) {
+  <replaceable>block-body</replaceable>
+} else {
+  <replaceable>block-body</replaceable>
+}</programlisting>
+
+        <para>where <literal>&lt;test&gt;</literal> must be an FPath expression (i.e. it
+        can not be an action invocation, which can have side-effects). The test expression
+        is first evaluated, and its result converted into a boolean value. If it is
+        <constant>true</constant>, the <quote>then</quote> block is exectuded. If it is
+        <constant>false</constant>, the first construct does nothing, while the second
+        executes the <quote>else</quote> block.</para>
+
+      </sect2>
+
+      <sect2 id="iteration">
+        <title>Iteration</title>
+
+        <para>FScript supports a restricted form of iteration, which ensures that the
+        execution will always terminate. The <literal>for</literal> construct executes a
+        given block repeatedly with a local iteration variable successively bound to each
+        element in a nodeset (which is always finite):</para>
+
+        <programlisting>for <replaceable>var</replaceable> : <replaceable>expression</replaceable> {
+  <replaceable>block-body</replaceable>
+}</programlisting>
+
+        <para>The <literal>&lt;expression&gt;</literal> must evaluate to a nodeset (or a
+        single node value which will be automatically converted to a singleton nodeset).
+        The body of the block is executed exactly once for each node in the nodeset, with
+        the corresponding value bound to <literal>&lt;var&gt;</literal>.</para>
+
+      </sect2>
+
+      <sect2 id="explicit-return">
+        <title>Explicit return</title>
+
+        <para>At any point during its execution, a procedure can stop its execution and
+        immediatly return to the caller, optionally yielding a value, using a
+        <literal>return</literal> statement:</para>
+
+        <programlisting>
+return;
+return <replaceable>expression-or-action</replaceable>;</programlisting>
+
+      </sect2>
+    </sect1>
+
+    <sect1 id="primitive-actions">
+      <title>Primitive Actions</title>
+
+      <para>FScript includes a standard library of primitive actions which correspond to
+      all the reconfiguration actions defined in the Fractal specification. This library
+      can of course be extended to support new operations introduced by extension to the
+      model. For example, one could imagine new primitives to support weaving and
+      unweaving of <emphasis>aspect components</emphasis> as supported by FAC.</para>
+
+      <para>An implementation of FScript must provide a standard way to add new primitive
+      operations.</para>
+
+      <para>The rest of this section describes all the primitive actions included in the
+      standard library.</para>
+
+    </sect1>
+
+  </chapter>
+
+  <chapter id="fractal-model">
+    <title>Details of the default Fractal backend</title>
+
+    <para>
+    </para>
+
+    <sect1>
+      <title>Node kinds and their properties</title>
+
+      <para>The standard kinds of nodes supported by FPath are:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para><token>component</token> nodes, which represent the components
+          themselves. Exactly one such node exist in the graph for each component in the
+          Fractal architecture it represents.</para>
+        </listitem>
+        <listitem>
+          <para><token>interface</token> nodes, which represent the component
+          interfaces. Interface nodes are used to represent <emphasis>all</emphasis> the
+          interfaces, be they control or service interface, client or server, internal
+          or external. Exactly one interface node exist for each interface in the
+          architecture. If two components have an <quote>identical</quote> interface
+          (for example a <token>name-controller</token>), two different nodes are used
+          in the graph.</para>
+        </listitem>
+        <listitem>
+          <para><token>attribute</token> nodes, which represent the configuration
+          attributes of the components, as defined by their (optional)
+          <token>attribute-controller</token> interface. Configuration attributes are
+          not reified explicitely in the Fractal specification, but available only
+          through naming conventions -- namely the JavaBeans conventions -- on the
+          methods of the <token>attribute-controller</token> interface. One attribute
+          node exist for each pair of setter/getter method in this interface.</para>
+        </listitem>
+      </itemizedlist>
+
+      <para>Each node has a name (accessible through the predefined
+      <function>name()</function> function), and each node type defines how a node can
+      be converted into each of the three primitive value types (numbers, strings,
+      booleans).</para>
+
+      <para>Unless specified otherwise for a particular node type, two nodes are equal
+      (as defined by the <token>=</token> operator) if and only if they represent the
+      same architectural element.</para>
+
+      <para>In the following discussion we will sometimes identify nodes with the
+      architectural elements they represent for simplicity when there is no risk of
+      confusion.</para>
+
+      <sect2 id="component-nodes">
+        <title>Component Nodes</title>
+
+        <para>Component nodes represent the actual Fractal components in the target
+        architecture. They are different from the interface node which represent their
+        <token>component</token> interface. Each component in the architecture, whether a
+        primitive, composite or another kind, is represented by exactly one component
+        node.</para>
+
+        <para>The <emphasis>name</emphasis> of a component node is defined as:</para>
+
+        <orderedlist>
+          <listitem>
+            <para>The value returned by the \texttt{NameController\#getFcName()} method of the
+            standard \texttt{name-controller} interface if the component provides this interface (or
+            a compatible extension of it).</para>
+          </listitem>
+          <listitem>
+            <para>The empty string (<token>""</token>) otherwise.</para>
+          </listitem>
+        </orderedlist>
+
+        <para>When converted into a <emphasis>string</emphasis>, the value of a
+        component node is the node's name. When converted into a
+        <emphasis>boolean</emphasis>, its value is always <function>true()</function>.
+        Finally, when converted into a <emphasis>number</emphasis>, the value of a
+        component node is Java's <constant>Double.NaN</constant> (<quote>Not a
+        Number</quote>).</para>
+
+        <para>The following pre-defined functions give access to additional information
+        on component nodes:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>The <function>state(<replaceable>aCompNode</replaceable>)</function>
+            function takes a component node in argument and returns a string indicating
+            the current lifecycle state of the corresponding component. More precisely,
+            it returns:</para>
+            <orderedlist>
+              <listitem>
+                <para>The value returned by the <function>#getFcState()</function>
+                method of the standard <token>lifecycle-controller</token> interface if
+                the component provides this interface (or a compatible extension of
+                it).</para>
+              </listitem>
+              <listitem>
+                <para>The empty string (<token>""</token>) otherwise.</para>
+              </listitem>
+            </orderedlist>
+          </listitem>
+          <listitem>
+            <para>The <function>started(<replaceable>aCompNode</replaceable>)</function>
+            function takes a component node in argument and returns
+            <function>true()</function> if <userinput>state(aCompNode) =
+            "STARTED"</userinput>, <function>false()</function> otherwise.</para>
+          </listitem>
+          <listitem>
+            <para>The <function>stopped(<parameter>aCompNode</parameter>)</function>
+            function takes a component node in argument and returns
+            <function>true()</function> if <userinput>state(aCompNode) =
+            "STOPPED"</userinput>, <function>false()</function> otherwise.</para>
+          </listitem>
+        </itemizedlist>
+
+      </sect2>
+
+      <sect2 id="interface-nodes">
+        <title>Interface nodes</title>
+
+        <para>Interface nodes represent component interfaces. Each interface of each
+        component present in the architecture, whether it is internal or external,
+        client or server, is represented by exactly one interface node.</para>
+
+        <para>The <emphasis>name</emphasis> of an interface node is defined as the
+        result of the <function>Interface#getFcItfName()</function> method of the
+        <classname>Interface</classname> object representing the component
+        interface.</para>
+
+        <para>When converted into a <emphasis>string</emphasis>, the value of an
+        interface node is the node's name. When converted into a <type>boolean</type>,
+        its value if always <constant>true()</constant>. Finally, when converted into a
+        <emphasis>number</emphasis>, the value of an interface node is Java's
+        <constant>Double.NaN</constant>.</para>
+
+        <para>The following pre-defined functions give access to additional information
+        on interface nodes:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>The <function>client(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is a client (i.e. required)
+            interface, and <constant>false()</constant> otherwise. More precisely, it
+            returns the same value as the Java expression <literal>((InterfaceType)
+            <varname>itf</varname>.getFcType()).isFcClientItf()</literal> where
+            <varname>itf</varname> denotes the interface represented by
+            <parameter>anItfNode</parameter>
+            <footnote><para>Like most of the functions described in this section, this
+            assumes that the type of the interface is (a subtype of) the standard
+            <classname>org.objectweb.fractal.api.type.InterfaceType</classname>.</para></footnote>.
+            </para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>server(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is a server (i.e. provided)
+            interface, and <constant>false()</constant> otherwise. It is equivalent to
+            <literal>not(client(<parameter>anItfNode</parameter>))</literal>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>optional(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is optional, and
+            <constant>false()</constant> otherwise. More precisely, it returns the same
+            value as the Java expression <literal>((InterfaceType)
+            <varname>itf</varname>.getFcType()).isFcOptionalItf()</literal> where
+            <varname>itf</varname> denotes the interface represented by
+            <parameter>anItfNode</parameter>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>mandatory(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is mandatory (i.e. not
+            optional), and <constant>false()</constant> otherwise. It is equivalent to
+            <literal>not(optional(<parameter>anItfNode</parameter>))</literal>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>collection(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is a collection interface, and
+            <constant>false()</constant> otherwise (if it is a single interface). More
+            precisely, it returns the same value as the Java expression
+            <literal>((InterfaceType)
+            <varname>itf</varname>.getFcType()).isFcCollectionItf()</literal> where
+            <varname>itf</varname> denotes the interface represented by
+            <parameter>anItfNode</parameter>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>single(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is a single interface (i.e. not
+            collection), and <constant>false()</constant> otherwise. It is equivalent to
+            <literal>not(collection(<parameter>anItfNode</parameter>))</literal>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>{internal(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is an internal interface, and
+            <constant>false()</constant> otherwise (if it is an external interface).
+            More precisely, it returns the same value as the Java expression
+            <literal><varname>itf</varname>.isFcInternalItf()</literal> where
+            <varname>itf</varname> denotes the interface represented by
+            <parameter>anItfNode</parameter>.</para>
+          </listitem>
+
+          <listitem>
+            <para>he <function>external(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is an external interface, and
+            <constant>false()</constant> otherwise (if it is an internal interface). It
+            is equivalent to
+            <literal>not(internal(<parameter>anItfNode</parameter>))</literal>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>signature(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns a string
+            representing the fully qualified name of the Java interface implemented (or
+            required) by the interface. More precisely, it returns the same value as the
+            Java expression <literal>((InterfaceType)
+            <varname>itf</varname>.getFcType()).getFcItfSignature()</literal> where
+            <varname>itf</varname> denotes the interface represented by
+            <parameter>anItfNode</parameter>.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>bound(<parameter>anItfNode</parameter>)</function>
+            function takes a single interface node as argument and returns
+            <constant>true()</constant> if the interface is a client interface and it is
+            currently bound to (at least) one server interface, and
+            <constant>false()</constant> otherwise.</para>
+          </listitem>
+
+          <listitem>
+            <para>The <function>compatible(<parameter>anItfNode1</parameter>,
+            <parameter>anItfNode2</parameter>)</function> function takes two interface
+            nodes as parameters and returns <constant>true()</constant> if:</para>
+            <orderedlist>
+              <listitem>
+                <para><parameter>anItfNode1</parameter> is a client interface;</para>
+              </listitem>
+
+              <listitem>
+                <para><parameter>anItfNode2</parameter> is a server interface;</para>
+              </listitem>
+
+              <listitem>
+                <para>it would be possible to create a direct binding from
+                <parameter>anItfNode1</parameter> to <parameter>anItfNode2</parameter>
+                (see the Fractal specification for the detailed conditions).</para>
+              </listitem>
+            </orderedlist>
+
+            <para>The function returns <constant>false()</constant> otherwise.</para>
+
+          </listitem>
+        </itemizedlist>
+
+      </sect2>
+
+      <sect2 id="attribute-nodes">
+        <title>Attribute nodes</title>
+
+        <para>Attribute nodes represent configuration attributes/parameters of Fractal
+        components, as exposed through the standard
+        <literal>attribute-controller</literal> interface. These attributes are not
+        explicitely reified by the Fractal model, as they are only defined through
+        method naming convention. However, as they provide one of the main ways to
+        dynamically configure components, FPath represents them explicitely.</para>
+
+        <para>If a component does not provide the standard
+        <literal>attribute-controller</literal> interface, it does not contribute any
+        attribute node.</para>
+
+        <!-- FIXME: The following description is badly worded, and does not support
+             read-only attributes. -->
+
+        <para>Given a component which provides the standard
+        <literal>attribute-controller</literal> interface, let <type>T</type> be the
+        signature of that interface (i.e. <type>T</type> is a Java interface type which
+        extends <type>AttributeController</type>). Each pair of methods of
+        <type>T</type> of the form <literal>V getX()</literal> / <literal>void
+        setX(V)</literal> or <literal>B isX()</literal> / <literal>void
+        setX(B)</literal>, where <literal>X</literal> is a valid Java identifier,
+        <literal>V</literal> represents any Java type (including primitive types) and
+        <literal>B</literal> represents either <type>boolean</type> or
+        <type>Boolean</type>, defines one attribute node. The name of this attribute
+        node is the identifier <literal>X</literal> where the first character (always a
+        letter) is converted to lower case. If for some identifier <literal>X</literal>
+        the three methods <literal>B isX()</literal>, <literal>B getX()</literal> and
+        <literal>void setX(B)</literal> exist, only one attribute node represents the
+        attribut <literal>X</literal>.</para>
+
+        <!-- TODO: The Fractal specification supports write-only attributes (see p.~13).
+             Should we support these too? Are there any cases when they might be
+             useful?} -->
+
+        <para>When converted into a <emphasis>string</emphasis>, the value of an
+        attribute node is the node's name. When converted into a
+        <emphasis>boolean</emphasis>, its value if always <constant>true()</constant>.
+        Finally, when converted into a <emphasis>number</emphasis>, the value of an
+        attribute node is Java's <constant>Double.NaN</constant>.</para>
+
+        <para>The following pre-defined functions give access to additional information
+        on attribute nodes:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para>The <function>value(<parameter>anAttrNode</parameter>)</function>
+            function takes a single attribute node as argument and returns the current
+            value of the corresponding attribute. More precisely, if the name of the
+            attribute node is <parameter>x</parameter>, the <function>value()</function>
+            returns the same value as the following Java expression:</para>
+
+            <programlisting>
+              ((T) c.getFcInterface("attribute-controller")).getX()
+              -- or
+              ((T) c.getFcInterface("attribute-controller")).isX()
+            </programlisting>
+
+            <para>where:</para>
+
+            <itemizedlist>
+              <listitem>
+                <para><parameter>c</parameter>is the <token>component</token> interface
+                of the component which contributed
+                <parameter>anAttrNode</parameter>;</para>
+              </listitem>
+              <listitem>
+                <para><type>T</type> is the actual type of that component's
+                <token>attribute-controller</token>;</para>
+              </listitem>
+              <listitem>
+                <para><parameter>X</parameter> is the capitalized version of the
+                attribute's name.</para>
+              </listitem>
+            </itemizedlist>
+
+          </listitem>
+        </itemizedlist>
+
+      </sect2>
+
+    </sect1>
+
+    <sect1>
+      <title>Primitive and derived navigation axes</title>
+
+      <itemizedlist>
+        <listitem>
+          <para>The <token>component</token> axis connects every single node (including
+          component nodes) to the component node which represent their
+          <quote>owner</quote> Fractal component.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>interface</token> axis connects component nodes to the
+          interface nodes which represent external interfaces of the corresponding
+          component.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>internal-interface</token> axis connects component node to
+          the interface nodes which represent internal interfaces of the corresponding
+          component.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>attribute</token> axis connects component node to the
+          attribute nodes which represent configuration attributes of the corresponding
+          component.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>binding</token> axis connects client interface nodes to the
+          server interface node they are bound to, if any.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>child</token> axis connects component nodes representing
+          composites to the component nodes representing their direct sub-components.
+          The <token>child-or\--self</token> axis is a superset of the
+          <token>child</token> axis which also connects each component node to
+          itself.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>parent</token> axis connects component nodes to the component
+          nodes representing their direct parents. The <token>parent-or-self</token>
+          axis is a superset of the <token>parent</token> axis which also connects each
+          component node to itself.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>descendant</token> axis is the transitive closure of the
+          <token>child</token> axis. It connects a given component node to all the
+          components it contains, directly or indirectly (including itself in the case
+          of <token>descendant-or-self</token>).</para>
+        </listitem>
+        <listitem>
+          <para>The <token>ancestor</token> axis is the transitive closure of the
+          <token>parent</token> axis. The <token>ancestor</token> axis connects a given
+          component node to all its direct or indirect parents.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>sibling</token> axis connects a component node to all the
+          components which share at least one direct parent with it, i.e. all the
+          components which are <quote>at the same level</quote> in the
+          architecture.</para>
+        </listitem>
+        <listitem>
+          <para>The <token>descendant-or-self</token>, <token>ancestor-or-self</token>,
+          and <token>sibling-or-self</token> axes are variants of respectively
+          <token>descendant</token>, <token>ancestor</token>, and <token>sibling</token>
+          which also connect the origin component node to itself.</para>
+        </listitem>
+      </itemizedlist>
+    </sect1>
+
+    <sect1>
+      <title>Primitive reconfiguration actions</title>
+
+      <sect2 id="action.set-value">
+        <title>Changing attribute values: <function>set-value()</function></title>
+
+        <para>The <function>set-value(<parameter>attr</parameter>,
+        <parameter>value</parameter>)</function> primitive action is used to change the
+        value of a component's attribute. It takes two parameters:</para>
+
+        <itemizedlist>
+          <listitem>
+            <para><parameter>attr</parameter> is an FPath expression which must evaluate
+            to a non-empty nodeset containing attribute nodes;</para>
+          </listitem>
+          <listitem>
+            <para><parameter>value</parameter> is an FPath expression which must evaluate
+            to a basic value (i.e. not a node or a nodeset).</para>
+          </listitem>
+        </itemizedlist>
+
+        <para>As mentioned earlier, FPath, and hence FScript, normally only deals with
+        floating point numbers. The only exception is when a numeric value is used to set
+        the value of a Fractal component attribute: if the attribute's type (as defined by
+        the signature of the corresponding <emphasis>setter</emphasis> method in the
+        components <literal>attribute-controller</literal>) is an integral type, or a
+        corresponding <emphasis>wrapper</emphasis> reference type, the number's value is
+        automatically converted into the appropriate type. This conversion is done using
+        the method <literal>Number.xValue()</literal>, where <literal>x</literal> is the
+        target integral type (i.e. <type>byte</type>, <type>short</type>).</para>
+      </sect2>
+
+      <sect2 id="action.bind">
+        <title>Creating bindings between interfaces: <function>bind()</function></title>
+
+        <para>The <function>bind(<parameter>clitf</parameter>,
+        <parameter>srvitf</parameter>)</function> primitive action is used to bind a
+        client interface to a compatible server interface. It corresponds to the
+        <function>bindFc(string, any)</function> method of the standard
+        <type>BindingController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.unbind">
+        <title>Destroying bindings between interfaces: <function>unbind()</function></title>
+
+        <para>The <function>unbind(<parameter>clitf</parameter>)</function> primitive
+        action is used to destroy a binding from client interface to a server interface.
+        It corresponds to the <function>unbindFc(string)</function> method of the standard
+        <type>BindingController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.add">
+        <title>Adding sub-components to composites: <function>add()</function></title>
+
+        <para>The <function>add(<parameter>parent</parameter>,
+        <parameter>child</parameter>)</function> primitive action is used to add a new
+        sub-component to a composite component. It corresponds to the
+        <function>addFcSubComponent(Component)</function> method of the standard
+        <type>ContentController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.remove">
+        <title>Removing sub-components from composites: <function>remove()</function></title>
+
+        <para>The <function>remove(<parameter>parent</parameter>,
+        <parameter>child</parameter>)</function> primitive action is used to remove a
+        sub-component from a composite component. It corresponds to the
+        <function>removeFcSubComponent()</function> method of the standard
+        <type>ContentController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.set-name">
+        <title>Changing a component name: <function>set-name()</function></title>
+
+        <para>Text <function>set-name(<parameter>comp</parameter>,
+        <parameter>name</parameter>)</function> primitive action is used to change the
+        name of a component, as defined by its <token>name-controller</token> interface.
+        If the component denoted by <parameter>comp</parameter> does not implement
+        <token>name-controller</token>, calling <function>set-name()</function> results in
+        an error. Otherwise, it corresponds to the <function>setFcName(String)</function>
+        method of the standard <type>NameController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.start">
+        <title>Starting a component: <function>start()</function></title>
+
+        <para>The <function>start(<parameter>comp</parameter>)</function> primitive action
+        is used to ensure that the component passed in argument is in the
+        <constant>STARTED</constant> state. If the component denoted by
+        <parameter>comp</parameter> does not implement
+        <token>lifecycle-controller</token>, calling <token>start()</token> results in an
+        error. Otherwise, it corresponds to the <function>startFc()</function> method of
+        the standard <type>LifeCycleController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.stop">
+        <title>Stopping a component: <function>stop()</function></title>
+
+        <para>The <function>stop(<parameter>comp</parameter>)</function> primitive action
+        is used to ensure that the component passed in argument is in the
+        <constant>STOPPED</constant> state. If the component denoted by
+        <parameter>comp</parameter> does not implement
+        <token>lifecycle-controller</token>, calling <function>stop()</function> results
+        in an error. Otherwise, it corresponds to the <function>stopFc()</function> method
+        of the standard <type>LifeCycleController</type> interface.</para>
+      </sect2>
+
+      <sect2 id="action.new">
+        <title>Instantiating new components: <function>new()</function></title>
+
+        <para>The <function>new(<parameter>tmplName</parameter>)</function> primitive
+        action is used to instanciate a new component. Its argument
+        <parameter>tmplName</parameter> must be the fully qualified name of a Fractal ADL
+        component definition, as a string, and returns a component node representing the
+        newly instanciated component (this action is the only pre-defined action which
+        returns a value). It corresponds to the <function>newComponent(String,
+        Map)</function> method of the Fractal ADL <type>Factory</type> interface, the
+        second parameter being <constant>null</constant>.</para>
+      </sect2>
+
+    </sect1>
+
+    <sect1>
+      <title>Other pre-defined procedures</title>
+
+      <para>
+      </para>
+    </sect1>
+
+  </chapter>
+
+</book>

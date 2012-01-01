@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+    Copyright (c) 2007-2008 ARMINES
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License version 2.1 as published by the Free Software Foundation.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+    Contact: fractal@objectweb.org
+  -->
+<!DOCTYPE definition PUBLIC "-//objectweb.org//DTD Fractal ADL 2.0//EN"
+          "classpath://org/objectweb/fractal/adl/xml/standard.dtd">
+<!-- This component coordinates the different parts of the execution
+     backend of the FScript implementation. -->
+<definition name="org.objectweb.fractal.fscript.BackendDriver">
+
+  <!-- External interfaces -->
+  <interface name="fscript-engine"
+             role="server"
+             signature="org.objectweb.fractal.fscript.FScriptEngine" />
+
+  <interface name="fragment-loader"
+             role="client"
+             signature="org.objectweb.fractal.fscript.FragmentLoader" />
+
+  <interface name="executor"
+             role="client"
+             signature="org.objectweb.fractal.fscript.Executor" />
+
+  <interface name="simulator"
+             role="client"
+             contingency="optional"
+             signature="org.objectweb.fractal.fscript.simulation.Simulator" />
+
+  <interface name="transaction-manager"
+             role="client"
+             contingency="optional"
+             signature="javax.transaction.UserTransaction" />
+
+  <interface name="logger"
+             role="client"
+             signature="org.objectweb.util.monolog.api.Logger" />
+
+  <!-- Implementation -->
+  <content class="org.objectweb.fractal.fscript.BackendDriver" />
+</definition>

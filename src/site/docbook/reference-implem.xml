@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<book>
+  <title>FPath and FScript Implementation Reference Manual</title>
+  <bookinfo>
+    <author>
+      <firstname>Pierre-Charles</firstname>
+      <surname>David</surname>
+      <email>pcdavid@gmail.com</email>
+    </author>
+  </bookinfo>
+
+  <chapter id="introduction">
+    <title>Introduction</title>
+
+    <para>This document is the reference manual for the FPath and FScript
+    implementation.</para>
+
+  </chapter>
+
+</book>

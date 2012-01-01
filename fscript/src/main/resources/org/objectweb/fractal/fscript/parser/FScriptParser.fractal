@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+    Copyright (c) 2007-2008 ARMINES
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License version 2.1 as published by the Free Software Foundation.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+    Contact: fractal@objectweb.org
+  -->
+<!DOCTYPE definition PUBLIC "-//objectweb.org//DTD Fractal ADL 2.0//EN"
+          "classpath://org/objectweb/fractal/adl/xml/basic.dtd">
+<!-- This component implements a parser for FPath expressions, FScript
+     statements and procedure definitions. -->
+<definition name="org.objectweb.fractal.fscript.parser.FScriptParser">
+
+  <!-- External interfaces -->
+  <interface name="fpath-parser"
+             signature="org.objectweb.fractal.fscript.parser.IFPathParser"
+             role="server" />
+
+  <interface name="fscript-parser"
+             signature="org.objectweb.fractal.fscript.parser.IFScriptParser"
+             role="server" />
+
+  <!-- Implementation -->
+  <content class="org.objectweb.fractal.fscript.parser.FScriptParserImpl" />
+</definition>

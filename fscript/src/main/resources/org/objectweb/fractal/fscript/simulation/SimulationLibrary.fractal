@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+    Copyright (c) 2007-2008 ARMINES
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License version 2.1 as published by the Free Software Foundation.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+    Contact: fractal@objectweb.org
+  -->
+<!DOCTYPE definition PUBLIC "-//objectweb.org//DTD Fractal ADL 2.0//EN"
+          "classpath://org/objectweb/fractal/adl/xml/basic.dtd">
+<!-- This component implements the library abstraction suitable for a
+     simulation: the natie procedures which map to actual model
+     operations are replaced by their equivalent from the derived model. -->
+<definition name="org.objectweb.fractal.fscript.simulation.SimulationLibrary"
+            extends="org.objectweb.fractal.fscript.ReporterType">
+
+  <!-- External interfaces -->
+  <interface name="library"
+             signature="org.objectweb.fractal.fscript.Library"
+             role="server" />
+
+  <interface name="base-library"
+             signature="org.objectweb.fractal.fscript.Library"
+             role="client" />
+
+  <interface name="model-library"
+             role="client"
+             signature="org.objectweb.fractal.fscript.procedures.NativeLibrary" />
+
+  <!-- Implementation -->
+  <content class="org.objectweb.fractal.fscript.simulation.SimulationLibrary" />
+</definition>

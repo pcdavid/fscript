@@ -1,0 +1,63 @@
+-- This FScript program builds an instance of the Comanche HTTP server
+-- "from scratch". It relies on the ADL only to instanciate primitives
+-- components (using the "adl-new()" primitive), but otherwise constructs
+-- the application architecture in pure FScript.
+-- 
+-- The resulting architecture should be undistinguishable from a
+-- Comanche instance created using the top-level ADL definition file,
+-- i.e. "adl-new('comanche.Comanche')".
+
+action build-comanche() {
+  var fe = build-frontend();
+  var be = build-backend();
+  var comanche = new-composite($fe/interface::r);
+  set-name($comanche, "comanche.Comanche");
+  add($comanche, $fe);
+  add($comanche, $be);
+  bind($comanche/internal-interface::r, $fe/interface::r);
+  bind($fe/interface::rh, $be/interface::rh);
+  return $comanche;
+}
+
+action build-frontend() {
+  var rr = adl-new("comanche.Receiver");
+  var s  = adl-new("comanche.MultiThreadScheduler");
+  var frontend = new-composite(union($rr/interface::r, $rr/interface::rh));
+  set-name($frontend, "comanche.Frontend");
+  add($frontend, $rr);
+  add($frontend, $s);
+  bind($frontend/internal-interface::r, $rr/interface::r);
+  bind($rr/interface::rh, $frontend/internal-interface::rh);
+  bind($rr/interface::s,  $s/interface::s);
+  return $frontend;
+}
+
+action build-backend() {
+  var ra = adl-new("comanche.Analyzer");
+  var rh = build-handler();
+  var l  = adl-new("comanche.Logger");
+  var be = new-composite($rh/interface::rh);
+  set-name($be, "comanche.Backend");
+  add($be, $ra);
+  add($be, $rh);
+  add($be, $l);
+  bind($be/internal-interface::rh, $ra/interface::a);
+  bind($ra/interface::l, $l/interface::l);
+  bind($ra/interface::rh, $rh/interface::rh);
+  return $be;
+}
+
+action build-handler() {
+  var rd  = adl-new("comanche.Dispatcher");
+  var frh = adl-new("comanche.FileHandler");
+  var erh = adl-new("comanche.ErrorHandler");
+  var h   = new-composite($frh/interface::rh);
+  set-name($h, "comanche.Handler");
+  add($h, $rd);
+  add($h, $frh);
+  add($h, $erh);
+  bind($h/internal-interface::rh, $rd/interface::rh);
+  cbind($rd, "h", $frh/interface::rh);
+  cbind($rd, "h", $erh/interface::rh);
+  return $h;
+}

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,47 +16,44 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
 
 import static org.junit.Assert.*;
-import static org.objectweb.fractal.fscript.FractalAssert.assertHasInterface;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.objectweb.fractal.api.Component;
 import org.objectweb.fractal.api.Interface;
-import org.objectweb.fractal.fscript.nodes.ComponentNodeImpl;
-import org.objectweb.fractal.fscript.nodes.DefaultNodeFactory;
-import org.objectweb.fractal.fscript.nodes.InterfaceNodeImpl;
+import org.objectweb.fractal.fscript.model.fractal.ComponentNode;
+import org.objectweb.fractal.fscript.model.fractal.FractalModel;
+import org.objectweb.fractal.fscript.model.fractal.InterfaceNode;
 
-public class NodesTest {
+public class NodesTest extends FractalTestCase {
     private Component comanche;
 
-    private DefaultNodeFactory nf;
+    private FractalModel model;
 
     @Before
-    public void setUp() {
-        comanche = FactoryHelper.newComanche();
-        nf = new DefaultNodeFactory();
+    public void setUp() throws Exception {
+        comanche = new ComancheHelper().comanche;
+        model = new FractalModel();
+        model.startFc();
     }
 
     @Test
     public void componentNode() throws Exception {
-        ComponentNodeImpl node = nf.createComponentNode(comanche);
-        assertEquals(FactoryHelper.COMANCHE_APP, node.getName());
+        ComponentNode node = model.createComponentNode(comanche);
+        assertEquals("comanche.Comanche", node.getName());
         assertSame(node.getComponent(), comanche);
     }
 
     @Test
     public void interfaceNode() throws Exception {
-        assertHasInterface("component", comanche);
-        InterfaceNodeImpl node = nf.createInterfaceNode((Interface) comanche
-                .getFcInterface("component"));
+        InterfaceNode node = model.createInterfaceNode((Interface) comanche);
         assertEquals("component", node.getName());
-        assertSame(comanche.getFcInterface("component"), ((InterfaceNodeImpl) node)
-                .getInterface());
-        assertSame(comanche, node.getComponent());
+        assertSame(comanche.getFcInterface("component"), node.getInterface());
+        assertSame(comanche, node.getInterface().getFcItfOwner());
     }
 }

@@ -1,6 +1,6 @@
 action add-handler(comanche, handler) {
   rd = $comanche/descendant::rd;
-  add($rd/parent::*, $handler);
+  add-child($rd/parent::*, $handler);
   return cbind($rd, 'h', $handler/interface::rh);
 }
 

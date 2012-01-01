@@ -2,10 +2,10 @@ action broken-replace-scheduler2(comanche) {
   fe = $comanche/child::fe;
   rr = $fe/child::rr;
   oldSched = $fe/child::s;
-  sched = new('comanche.MultiThreadScheduler');// Should be rollbacked
-  add($fe, $sched); // Should be rollbacked
-  set-name($oldSched, 'old-sched'); // Should be rollbacked
-  remove($fe, $oldSched);// Wrong order: should unbound before remove.
+  sched = adl-new('comanche.MultiThreadScheduler'); -- Should be rollbacked
+  add($fe, $sched);                                 -- Should be rollbacked
+  set-name($oldSched, 'old-sched');                 -- Should be rollbacked
+  remove($fe, $oldSched);                           -- Wrong order: should unbound before remove.
   unbind($rr/interface::s[client(.)]);
   bind($rr/interface::s, $sched/interface::s);
 }

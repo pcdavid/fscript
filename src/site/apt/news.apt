@@ -1,0 +1,199 @@
+                                 ---
+		       News and Recent Changes
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+News and Recent Changes
+
+* {FScript 2.0 Released}
+
+  FScript version 2.0 is an almost complete rewrite from version 1.0,
+  with many new features and changes.
+
+** Languages changes in FPath
+
+  * FPath now (finally!) supports XPath-style shortcuts for common
+    navigation axes:
+
+     * the <<<child>>> navigation axis is the default when none is specified;
+
+     * the <<<attribute>>> axis can be shortened to <<<@>>>;
+
+     * the <<<parent>>> axis can be shortened to <<<..>>> , but only when used as
+       <<<parent::*>>>;
+
+     * the <<<descendant-or-self>>> axis can be shortened to <<</>>>, giving <<<//>>> as a
+       separator for steps.
+
+    Examples:
+
+*----------------------------------------------+------------------------------+
+FPath 1.0                                      | FPath 2.0
+*----------------------------------------------+------------------------------+
+<<<$comanche/child::fe/child::s>>>             | <<<$comanche/fe/s>>>
+<<<$comanche/child::*[started(.)]>>>           | <<<$comanche/*[started(.)]>>>
+*-----------------------+-----------------------------------------------------+
+<<<$hello/child::printer/attribute::prefix>>>  | <<<$hello/printer/@prefix>>>
+<<<$hello/child::printer/attribute::*>>>       | <<<$hello/printer/@*>>>
+*-----------------------+-----------------------------------------------------+
+<<<$printer/parent::*/attribute::message>>>    | <<<$printer/../@message>>>
+*-----------------------+-----------------------------------------------------+
+<<<$root/descendant-or-self::logger>>>         | <<<$root//logger>>>
+<<<$root/descendant-or-self::*/attribute::*>>> | <<<$root//*/@*>>>
+*-----------------------+-----------------------------------------------------+
+
+  * The node-set manipulation functions <<<union()>>>, <<<intersection()>>> and
+    <<<difference()>>> now have direct syntactic support:
+
+*------------------------------+---------------------+
+FPath 1.0                      | FPath 2.0
+*------------------------------+---------------------+
+<<<unions($ns1, $ns2)>>>       | <<<$ns1 \| $ns2>>>
+<<<intersection($ns1, $ns2)>>> | <<<$ns1 & $ns2>>>
+<<<difference($ns1, $ns2)>>>   | <<<$ns1 \x5c $ns2>>>
+*------------------------------+---------------------+
+
+  * The way FPath sees collection interfaces has changed in an incompatible way:
+    collection interfaces are now explicitly represented as nodes <even when they have no
+    actual instance>.
+
+    For example, imagine a component <<<$c>>> with only one client interface, named
+    <<<s>>> and of collection cardinality. If there is no binding for <<<s>>>, the FPath
+    expression <<<$c/interface::*>>> returned an empty set in FPath 1.0, making collection
+    interfaces completely invisible until they were bound. In FPath
+    2.0 it will return a singleton with a node representing the "prototype" interface
+    <<<s>>>. If the interface has two bindings <<<s0>>> and <<<s1>>>, the same expression
+    would return a set with <<<s0>>> and <<<s1>>> in FPath 1.0, and a set with <<<s>>>,
+    <<<s0>>> and <<<s1>>> in FPath 2.0. Following the <<<binding>>> axis from a node
+    representing the prototype of a collection interface (e.g. <<<s>>> in our example)
+    follows the <<<binding>>> axis for all its instance bindings at the same time.
+
+** Languages changes in FScript
+
+  * Because of the new shortcuts now supported in FScript, the comments syntax has been
+    changed: <<<//>>> and <<</*>>>, which were use to start C/C++ style comments before,
+    are now valid FPath syntax. The new comments start with <<<-->>> (double-dash) and go
+    to the end of the line. Example:
+
++--
+-- This is a comment for function inc.
+function inc(x) {
+  return $x + 1; -- return x's successor
+}
++--
+
+** Implementation and API changes
+
+  * FScript 2.0 is now implemented as a set of Fractal components. The new architecture is
+    much more modular and extensible.
+
+  * The client-side APIs have changed. The concepts are mostly the same, but the details
+    differ. See {{{tutorial-apis.html}the Java APIs tutorial}} for the details.
+
+  * Most of the implementation is now completely independent on the details of Fractal,
+    and only deal with general concepts of <nodes>, node <properties> (e.g. a node's
+    <<<name>>>) and <<<axes>>> to connect nodes. All the details required to target a
+    specific architectural model (e.g. Fractal) are encapsulated in a single component. It
+    is possible to provide another implementation of this component to target different
+    "component models", or any architectural model which can be described. A proof of
+    concept with an alternative backend for FPath (not FScript) to query JMX-based systems
+    is currently in the work and should be released shortly.
+
+  * FScript 2.0 does not implement transactional semantics by itself anymore. Instead, it
+    can connect to an extended version of Julia which provides a much more complete and
+    robust support for reliable ACID reconfigurations. This work is done by Marc Léger at
+    France Télécom, and is independent of FScript, but is not publicly available for now.
+
+  * The new architecture was designed to support various levels of static and dynamic
+    analysis of FScript programs, to ensure the reliability and efficiency of the
+    reconfigurations. As of version 2.0, only the overall structure of the different
+    phases is in place, and not much actual analysis is implemented. These analyses are
+    currently in active research, and the plan is to integrate them in future 2.x releases
+    with minimal changes to the overall architecture.
+
+** Console application changes
+
+  * The console now supports automatic completion on axes names and global variables using
+    the <<<TAB>>> key.
+
+  * Better result formatting: when the result is a node-set, the console prints the number
+    of elements in the set, and formats the element nodes' representations in alphabetical
+    order and aligned in column (adapted to the terminal's width).
+
+  * Several special commands have been renamed, and most have been improved. See the
+    console's documentation for the details.
+
+  * New special commands:
+
+      * <<<:help>>> provides integrated help on special commands. Invoke as <<<:help
+        cmd>>> (e.g. <<<:help load>>>).
+
+      * <<<:get_interpreter varName>>> can be used to obtain a reference (in variable
+        <<<varName>>>) to the underlying FScript interpreter used by the console (a
+        Fractal component). Note that directly reconfiguring this component from the
+        console is very hazardous and can easily deadlock the console. (It <is> possible,
+        but you really have to know what you do.)
+
+      * <<<:set_interpreter $varName>>> can be used to change the FScript interpreter used
+        by the console. Typical usage scenario:
+
+---
+-- Create a new FScript interpreter from the default ADL definition,
+-- or use an alternative definition.
+FScript> f = adl_new("org.objectweb.fractal.fscript.FScript");
+
+-- Reconfigure the interpreter in $f, which is STOPPED
+FScript> replace($f/model, adl_new("MyCustomModel"));
+
+-- Switch the console to use the customized interpreter
+FScript> :set_interpreter $f
+---      
+
+** New modules
+
+  * A new module named <<<fscript-jade>>> has been added. It provides a slightly extended
+    version of FScript to support features specific to
+    {{{http://sardes.inrialpes.fr/jade.html}the Jade platform}} (now part of
+    {{{http://jasmine.ow2.org/}Jasmine}}):
+
+      * new primitives <<<deploy()>>> and <<<undeploy()>>> to control remote Jade
+        component deployment;
+
+      * support for the <<<GenericAttributeController>>> used by Jade instead of the basic
+        <<<AttributeController>>>;
+
+      * support for a new axis named <<<dual>>> to navigate between base-level Jade
+        component and their representatives in the <System Representation>.
+
+** Missing or deprecated features
+
+  Features from version 1.0 which have not yet been re-implemented in version 2.0:
+
+  * The <<<adl_new()>>> (formerly <<<new()>>>) action used to support a variable number of
+    arguments to specify instantiation context parameters. The FScript 2.0 runtime does not
+    currently support varargs, so <<<adl_new()>>> can only be used in its single argument
+    form (and ADL definition name) at the moment.
+
+  * The <<<new_component()>>> action has not yet been ported to 2.0.
+
+  * Some of the convenience methods provided by the <<<FScriptInterpreter>>> API (for
+    example <<<evaluateFrom()>>>) currently do not have any equivalent in the new APIs.
+
+* {FPath and FScript in the TCS Zoo}
+
+  FPath and FScript have been added to the
+  {{{http://wiki.eclipse.org/TCS/Zoo}TCS Zoo}}, as use cases for the
+  {{{http://wiki.eclipse.org/AMMA}AMMA}} (ATLAS Model Management
+  Architecture) technologies.
+
+  The use cases include syntax definitions for both languages (using
+  {{{http://wiki.eclipse.org/TCS}TCS}}), and the corresponding
+  meta-model (in {{{http://wiki.eclipse.org/KM3}KM3}}). AMMA
+  technologies can, among other things, generate parsers and Eclipse
+  plugins with structured editors for the languages with these
+  high-level definitions (see the screenshots on the TCS Zoo page).
+
+  This work was done by
+  {{{http://www.sciences.univ-nantes.fr/lina/atl/contrib/jouault}Frédéric
+  Jouault}}.

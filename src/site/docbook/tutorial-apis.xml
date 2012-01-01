@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>FPath and FScript APIs Tutorial</title>
+    <author>
+      <firstname>Pierre-Charles</firstname>
+      <surname>David</surname>
+      <email>pcdavid@gmail.com</email>
+    </author>
+  </articleinfo>
+
+  <sect1 id="introduction">
+    <title>Introduction</title>
+
+    <para>This document gives a brief overview of the Java APIs of the new version of the
+    FPath and FScript languages (2.0). From the Java programmer's point of view, the main
+    difference with the previous version is that it is now implemented in Fractal: the
+    FScript interpreter is itself a Fractal component. This means that the different
+    features of the interpreter are now available through several component
+    interfaces.</para>
+
+    <para>The reason we took this approach is that it enables us to support different
+    internal configurations for the interpreter, with different levels of support for
+    static and dynamic analysis, and runtime control of the scripts execution. It also
+    enables us to customize the standard library of axes, nodes and procedures available
+    to easily support extensions of Fractal, or even other component models. In this
+    tutorial, we will only cover the use of the default configuration and the standard
+    Fractal model target.</para>
+
+    <para>This document assumes you have already installed FScript and all the
+    JARs are available in your development environment. If that is not the case,
+    follow <ulink url="installing.html">the installation instructions</ulink> first.
+    </para>
+
+  </sect1>
+
+  <sect1 id="creation">
+    <title>Creating an FScript interpreter</title>
+
+    <para>Your programs interact with FScript through the Fractal component which
+    implements the FPath and FScript interpreter. You can create several interpreters in
+    a single JVM, but they will we completely independent: procedures you've loaded in one
+    interpreter will not be available in the others, and each interpreter has its own set
+    of global variables. Note that unless you have specific needs, you should normally try
+    to reuse the same interpreter as much as possible, as they are relatively heavyweight
+    components, and are costly to create. <emphasis>Do not create a new interpreter each
+    time you want to evaluate an FPath query!</emphasis>
+    </para>
+
+    <para>As stated above, the FScript interpreter is implemented as a Fractal composite
+    component, and supports different configurations. The default configuration is defined
+    using the Fractal ADL and is named
+    <literal>org.objectweb.fractal.fscript.FScript</literal>. The recommended way to
+    obtain an FScript interpreter in your Java program is to use the
+    <literal>FScript</literal> utility class in the
+    <literal>org.objectweb.fractal.fscript</literal> package:</para>
+
+    <screen>Component fscript = FScript.newEngine();</screen>
+
+    <para>This helper method creates the FScript engine, starts it, and makes sure it is
+    correctly initialized (by loading the FScript standard library). The resulting
+    component is ready to use. If you are in a context where you can not use this method
+    (for example you want to use a non-standard Fractal ADL factory), you will need to do
+    this initialization yourself. See the source code for the
+    <literal>newEngine()</literal> method for the details (it is not difficult).</para>
+
+    <sect2 id="services">
+      <title>Overview of the services offered by the FScript component</title>
+
+      <para>The FScript component created above offers its services through three main
+      server interfaces (this is different from the way FScript 1.0 worked, where
+      everything was available through the <literal>FScriptInterpreter</literal>
+      interface). These interfaces are:</para>
+
+      <itemizedlist>
+	<listitem><para>The <literal>loader</literal> interface, of type
+	<literal>org.objectweb.fractal.fscript.ScriptLoader</literal>. This interface is
+	used to load new FScript procedures definitions from source files. It can be
+	obtained using the <literal>FScript.getScriptLoader(Component)</literal> helper
+	method:</para>
+
+	<screen>ScriptLoader loader = FScript.getScriptLoader(fscript);</screen>
+	</listitem>
+
+	<listitem><para>The <literal>engine</literal> interface, of type
+	<literal>org.objectweb.fractal.fscript.FScriptEngine</literal>, is the main
+	interface to use to evaluate FPath queries and invoke FScript procedures. It can
+	be obtained using the <literal>FScript.getFScriptEngine(Component)</literal>
+	helper method:</para>
+
+	<screen>FScriptEngine engine = FScript.getFScriptEngine(fscript);</screen>
+	</listitem>
+
+	<listitem><para>The <literal>node-factory</literal> interface, of type
+	<literal>org.objectweb.fractal.fscript.model.fractal.NodeFactory</literal>, is
+	used to wrap Fractal objects (e.g. components and interfaces references) into
+	FPath nodes. FPath uses the notion of <emphasis>nodes</emphasis> to provide a
+	uniform representation of all the different kinds of architectural elements. In
+	the case of Fractal, there are three kinds of nodes:
+	<literal>ComponentNode</literal>s, <literal>InterfaceNode</literal>s, and
+	<literal>AttributeNode</literal>. The <literal>node-factory</literal> is used to
+	create them, and can be obtained using the
+	<literal>FScript.getNodeFactory(Component)</literal> helper method:</para>
+
+	<screen>NodeFactory nf = FScript.getNodeFactory(fscript);</screen>
+	</listitem>
+
+      </itemizedlist>
+    </sect2>
+      
+  </sect1>
+
+  <sect1 id="fpath">
+    <title>Evaluating FPath queries</title>
+
+    <para>Evaluating FPath queries is done using the <literal>execute()</literal> methods
+    on the <literal>FScriptEngine</literal> interface. The method exists in two equivalent
+    variants, taking either a plain <literal>String</literal> or a more general
+    <literal>Reader</literal> object to denote the text of the query. Evaluating a very
+    simple example expression, which does not actually uses FPath paths, is very
+    easy:</para>
+
+    <screen>Object result = engine.execute("1+1");
+System.out.println(result); // Prints "2"</screen>
+
+    <note>
+      <para>In all the code examples in the rest of this tutorial, the Java variables
+      <varname>fscript</varname>, <varname>loader</varname>, <varname>engine</varname> and
+      <varname>nf</varname> respectively denote the main FScript component and its
+      <literal>loader</literal>, <literal>engine</literal> and
+      <literal>node-factory</literal> interfaces, as defined in the code snippets
+      above.</para>
+    </note>
+
+    <para>If the execution succeeds, <literal>execute()</literal> returns the value of the
+    expression. If an error occurs during the execution, it throws an exception of type
+    <literal>org.objectweb.fractal.fscript.FScriptException</literal>.</para>
+
+    <para>To evaluate an actually useful FPath expression which references elements in a
+    Fractal architecture is a little more involved, but not difficult. Let's say we want
+    to find the sub-components of component <varname>c1</varname> which are not also
+    sub-components of <varname>c2</varname>. Here, <varname>c1</varname> and
+    <varname>c2</varname> are Java variables of type <type>Component</type>. In order to
+    be able to reference them in an FPath expression, we must:</para>
+
+    <orderedlist>
+      <listitem><para>Wrap them into <type>Node</type>s, using the FScript
+      implementation's <literal>node-factory</literal> interface:</para>
+
+      <screen>Node c1Node = nf.createComponentNode(c1);
+Node c2Node = nf.createComponentNode(c2);</screen>
+      </listitem>
+
+      <listitem><para>Define global variables in the FScript interpreter to denote these
+      two nodes. This is done using the main <literal>engine</literal> interface of the
+      FScript implementation:</para>
+
+      <screen>engine.setGlobalVariable("c1", c1Node);
+engine.setGlobalVariable("c2", c2Node);</screen>
+      </listitem>
+    </orderedlist>
+
+    <para>Once this is done, we can check that the interpreter now knows that
+    <literal>$c1</literal> in an FPath expression denotes (the node which corresponds to)
+    the same component as the Java variable <literal>c1</literal>:</para>
+
+    <screen><![CDATA[Object result = engine.execute("$c1");
+System.out.println(result); // Prints something like "#<component: c1>"
+assert result == c1Node;
+]]></screen>
+
+    <para>The message printed by the second line will be of the form
+    <literal>#&lt;component: name&gt;</literal>, which is the string representation of an
+    FPath component node. The actual <literal>name</literal> (<literal>c1</literal> in the
+    above code) will be the name of the corresponding Fractal component, as defined by
+    its <literal>name-controller</literal>.</para>
+
+    <para>We have now everything in place to actually evaluate the FPath query:</para>
+
+    <screen>Set&lt;Node&gt; nodes = (Set&lt;Node&gt;) engine.execute("difference($c1/*, $c2/*)");</screen>
+
+    <para>The Java variable <varname>nodes</varname> now contains nodes representing the
+    components which are children of <varname>c1</varname> but not of
+    <varname>c2</varname> (here computed using the set difference operator).</para>
+
+    <para>Because FPath expressions can return many different kinds of results (numbers,
+    strings, nodes, node-sets, etc.), the <literal>execute()</literal> method's return
+    type is simply <type>Object</type>. You must cast the result into the appropriate
+    type, depending on the query executed. Node-sets, returned by many FPath queries, are
+    represented in Java as <literal>Set&lt;Node&gt;</literal>. In practice, to actually
+    use the resulting values, you must downcast the set's elements into the appropriate
+    node-kind:</para>
+
+    <screen>for (Node node : nodes) {
+    Component c = ((ComponentNode) node).getComponent();
+    // Do something useful with the Fractal component c
+}</screen>
+
+    <para>To conclude this section on FPath queries, let's summarize the complete Java
+    code of the example:</para>
+
+    <screen><![CDATA[
+// We assume c1 and c2 are Java variables referencing the proper Fractal components
+
+// Define corresponding variables we'll use in the FPath query
+engine.setGlobalVariable("c1", nf.createComponentNode(c1));
+engine.setGlobalVariable("c2", nf.createComponentNode(c2));
+
+// Execute the query
+Set<Node> nodes = (Set<Node>) engine.execute("difference($c1/*, $c2/*)");
+
+// Use the result
+for (Node node : nodes) {
+    Component c = ((ComponentNode) node).getComponent();
+    // Do something useful with the Fractal component c
+}]]></screen>
+
+  </sect1>
+
+  <sect1 id="fscript">
+    <title>Invoking FScript procedures</title>
+    
+    <para>The second most important API in FScript is used to invoke an existing FScript
+    procedure with particular parameters. It is available through the
+    <literal>invoke()</literal> method of the <type>FScriptEngine</type> interface.</para>
+
+    <para>While the <literal>execute()</literal> method described in the previous section
+    can be used to execute arbitrarily complex expressions, the
+    <literal>invoke()</literal> method only supports direct invocation of a procedure with
+    explicit parameters. Its signature is the following:</para>
+
+    <screen>Object invoke(String procName, Object... args) throws FScriptException;</screen>
+
+    <para>where <varname>procName</varname> is the name of the procedure to invoke, and
+    <varname>args</varname> is the optional list of arguments. These arguments are the
+    actual values passed to the procedure, not expressions to be evaluated. The procedure
+    named by <varname>procName</varname> must be known by the interpreter, but it can be
+    either a built-in, a procedure part of the standard library, or one which has been
+    loaded in the interpreter earlier (see the next section). The number and type of the
+    arguments must also match the expectations of the procedure, or an
+    <type>ScriptExecutionError</type> (subtype of <type>FScriptException</type>) is
+    thrown.</para>
+
+    <para>As an example, to invoke the pre-defined procedure <literal>add()</literal>,
+    which takes two components as argument and adds the second one into the first (which
+    must be a composite), we can do:</para>
+
+    <screen>engine.invoke("add", c1Node, c2Node);</screen>
+
+    <para>This is equivalent to calling <literal>execute()</literal> with an argument of
+    <literal>"add($c1, $c2)"</literal>, but it does not require the definition of the
+    global variables. On the other hand, the <literal>invoke</literal> form can only be
+    used when a named procedure already exists to do what we want, and when the value of
+    the arguments is known (i.e. they are not expressions which need to be
+    evaluated).</para>
+
+    <para>More generally, there is a correspondence between <literal>invoke()</literal>
+    and <literal>execute()</literal>:</para>
+
+    <itemizedlist>
+      <listitem><para>Calling <literal>execute(expr)</literal> on an expression or
+      statement <literal>expr</literal> is equivalent to calling
+      <literal>invoke()</literal> on a procedure of not argument whose body is
+      <literal>return <replaceable>expr</replaceable>;</literal>.</para></listitem>
+
+      <listitem><para>Calling <literal>invoke("p", arg1, ... argN)</literal> on a
+      procedure named <literal>p</literal> with arguments <literal>arg1</literal>,...
+      <literal>argN</literal> is equivalent to calling <literal>execute()</literal> on the
+      expression <literal>"p($arg1,... $argN)"</literal> where <literal>$arg1</literal> to
+      <literal>$argN</literal> are FPath global variables corresponding to the Java
+      variables of the same name.</para></listitem>
+    </itemizedlist>
+
+    <para>The two mechanisms are equally powerful, but each one is more or less convenient
+    depending on the use case:</para>
+
+    <itemizedlist>
+      <listitem><para>use <literal>execute()</literal> to evaluate "one-shot" FPath
+      expressions of FScript statements which only occur once;</para></listitem>
+      <listitem><para>otherwise, define (and load) a proper procedure with a name, which
+      can then be <literal>invoke()</literal>-ed repeatedly.</para></listitem>
+    </itemizedlist>
+
+  </sect1>
+
+  <sect1 id="loading">
+    <title>Loading new FScript procedures definitions</title>
+
+    <para>The last important API provided by the main FScript component is offered through
+    its <literal>loader</literal> interface, and is used to load new FScript procedures
+    definitions (stored in files) into the interpreter. Note that loading a procedure
+    definition does not execute it, but merely makes it available for future executions
+    (using either <literal>execute()</literal> or <literal>invoke()</literal>.</para>
+
+    <para>The <literal>loader</literal> interface is of type <type>ScriptLoader</type>,
+    and offers only two equivalent methods named <literal>load()</literal>. They differ
+    only in the type of their argument, which can be either a <type>String</type> or a
+    <type>Reader</type>.</para>
+
+    <para>This single argument represents the FScript source code to load, which must be a
+    sequence of procedure definitions. Note that the argument is not the name of a file,
+    or a URL where the source can be found: it is the source code to load itself. For
+    example, given a source file <literal>myfunctions.fscript</literal> with the following
+    content:</para>
+
+    <screen>function q(c1, c2) {
+  return difference($c1/*, $c2/*);
+}</screen>
+
+    <para>one can load the procedures definitions like this:</para>
+
+    <screen>Set&lt;String&gt; names = loader.load(new FileReader("myfunctions.fscript"));</screen>
+
+    <para>Both variants of <literal>load()</literal> return the names of the procedures it
+    found (and loaded) in the source argument. In this example, it would only contain the
+    string <literal>"q"</literal>.</para>
+
+    <para>Once successfully loaded, the new procedure definition can be use either through
+    <literal>execute()</literal> or <literal>invoke()</literal>. For instance, the
+    following example at the end of <xref linkend="fpath"/>:</para>
+
+    <screen>engine.setGlobalVariable("c1", nf.createComponentNode(c1));
+engine.setGlobalVariable("c2", nf.createComponentNode(c2));
+Set&lt;Node&gt; nodes = (Set&lt;Node&gt;) engine.execute("difference($c1/*, $c2/*)");</screen>
+
+   <para>can now be programmed more succinctly as:</para>
+
+   <screen>Set&lt;Node&gt; nodes = (Set&lt;Node&gt;) engine.invoke("q", c1Node, c2Node);</screen>
+
+  </sect1>
+
+  <sect1 id="conclusion">
+    <title>Conclusion and further reading</title>
+
+    <para>In this tutorial we've seen how to use the FPath and FScript interpreter in your
+    Java programs. To summarize, the different steps are:</para>
+
+    <orderedlist>
+      <listitem>
+	<para>Create an FScript interpreter component, the simplest (and recommended way)
+	being simply to invoke <literal>FScript.newEngine()</literal>.</para>
+      </listitem>
+
+      <listitem>
+	<para>Optionally, use the <literal>loader</literal> interface of this component to
+	load custom procedure definitions stored in files or Java resources.</para>
+      </listitem>
+
+      <listitem>
+	<para>Use the methods defined by the <literal>engine</literal> interface
+	(<literal>execute()</literal> and <literal>invoke()</literal>) to actually execute
+	FPath queries and FScript reconfigurations. This will usually require a first step
+	where Fractal values representing, for example, components, must be wrapped into
+	FPath nodes using the <literal>node-factory</literal> interface. The result of a
+	query or reconfiguration, when it is a node or node-set, must then be downcasted
+	and unwrapped to obtain the underlying Fractal values.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>This tutorial only gives a brief overview of the main interfaces of the default
+    FScript component configuration. More details are available in <ulink
+    url="fscript/apidocs/index.html">the Javadoc</ulink>, in particular concerning error
+    conditions. Advanced usage of FScript will require the use of interfaces provided by
+    sub-components of the top-level FScript composite and/or the actual customization or
+    extension of the FScript implementation. Specific documentation is planned for these
+    but are not yet available.</para>
+  </sect1>
+
+</article>

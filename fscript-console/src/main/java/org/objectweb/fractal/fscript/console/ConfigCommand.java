@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2004-2005 Universite de Nantes (LINA)
- * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2007-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,49 +18,65 @@
  */
 package org.objectweb.fractal.fscript.console;
 
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import org.objectweb.fractal.fscript.FScriptInterpreter;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 
+/**
+ * This command prints a summary of useful Fractal configuration parameters in effect. The current
+ * implementation is limited to system properties used by Fractal and Julia.
+ * 
+ * @author Pierre-Charles David
+ */
 public class ConfigCommand extends AbstractCommand {
-	private final static String JULIA_PROVIDER = "org.objectweb.fractal.julia.Julia";
+    private final static String JULIA_PROVIDER = "org.objectweb.fractal.julia.Julia";
 
-	private final static Map<String, List<String>> PROVIDER_PROPERTIES = new HashMap<String, List<String>>();
+    /**
+     * Relevant system properties for each supported provider.
+     */
+    private final static Multimap<String, String> PROPERTIES = Multimaps.newArrayListMultimap();
 
-	static {
-		List<String> properties = Arrays.asList("julia.loader", "julia.config");
-		PROVIDER_PROPERTIES.put(JULIA_PROVIDER, properties);
-		// TODO Add AOKell properties
-	}
+    static {
+        PROPERTIES.put(JULIA_PROVIDER, "fractal.provider");
+        PROPERTIES.put(JULIA_PROVIDER, "julia.loader");
+        PROPERTIES.put(JULIA_PROVIDER, "julia.config");
+    }
 
-	public ConfigCommand(Console console, FScriptInterpreter fscript) {
-		super(console, fscript);
-	}
-
-	public String getName() {
-		return "config";
-	}
-
-	public String getDescription() {
-		return "Shows the Fractal configuration parameters in effect.";
-	}
-
-	public void execute(String args) throws Exception {
-		console.printMessage("Current configuration:");
-		showProperty("fractal.provider", console);
-		String provider = System.getProperty("fractal.provider");
-		List<String> properties = PROVIDER_PROPERTIES.get(provider);
-		if (properties != null) {
-			for (String property : properties) {
-				showProperty(property, console);
-			}
-		}
-	}
-
-	private void showProperty(String name, Console console) {
-		console.printMessage(name + ": " + System.getProperty(name));
-	}
+    public void execute(String args) throws Exception {
+        showTitle("Current configuration parameters");
+        String provider = System.getProperty("fractal.provider");
+        if (provider == null) {
+            showWarning("System property 'fractal.provider' not set.");
+            showWarning("Fractal not correctly initialized.");
+            return;
+        }
+        Collection<String> properties = PROPERTIES.get(provider);
+        String[][] table = new String[properties.size() + 1][2];
+        // Table headers
+        table[0][0] = "Property";
+        table[0][1] = "Value";
+        // Show values if available
+        if (PROPERTIES.containsKey(provider)) {
+            int i = 1;
+            List<String> sortedNames = Lists.newArrayList(properties);
+            Collections.sort(sortedNames);
+            for (String property : sortedNames) {
+                table[i][0] = property;
+                table[i][1] = System.getProperty(property);
+                i += 1;
+            }
+            showTable(table);
+        } else {
+            table[1][0] = "fractal.provider";
+            table[1][1] = provider;
+            showTable(table);
+            newline();
+            showWarning("This provider is not supported by this command.");
+            showWarning("No additional information available.");
+        }
+    }
 }

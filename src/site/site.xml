@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="FScript Project">
+  <skin>
+    <groupId>org.ow2.maven.skin</groupId>
+    <artifactId>maven-skin-ow2</artifactId>
+    <version>1.0</version>
+  </skin>
+
+  <bannerLeft>
+    <src>images/banner-fractal.png</src>
+    <href>http://fractal.objectweb.org</href>
+  </bannerLeft>
+
+  <version position="navigation-top" />
+
+  <body>
+    <menu name="FScript">
+      <item name="Overview"             href="index.html" />
+      <item name="Features"             href="features.html" />
+      <item name="News"                 href="news.html" />
+      <item name="Installing"           href="installing.html" />
+      <item name="Documentation"        href="documentation.html" />
+      <item name="Publications"         href="publications.html" />
+      <item name="Credits"              href="credits.html" />
+      <item name="ObjectWeb Forge Site" href="http://forge.objectweb.org/projects/fractal/" />
+    </menu>
+
+    <menu ref="modules" />
+    <menu ref="reports" />
+    <menu ref="parent" />
+  </body>
+</project>

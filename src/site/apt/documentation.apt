@@ -1,0 +1,71 @@
+                                 ---
+			FScript Documentation
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+FPath and FScript Documentation
+
+  The documentation for FPath and FScript is split into introductory
+  tutorials and reference material.
+
+* Tutorials
+
+  The following tutorials are available to get a quick start using
+  FPath and FScript:
+
+    * The {{{tutorial-fpath.html}FPath tutorial}} describes how to use
+      the FPath notation itself, independently of the rest of the
+      FScript language. If you only want to use FPath to query Fractal
+      architectures, start with this document. The tutorial is
+      designed so that the reader can follow along using the
+      interactive console, and hence also includes an introduction to
+      the console application.
+
+    * The {{{tutorial-fscript.html}FScript tutorial}} build on the
+      knowledge of FPath from the previous tutorial and describes the
+      complete FScript language. Several different reconfiguration
+      scripts are developed and explained, and again the console is
+      used to experiment with them.
+
+    * The {{{tutorial-apis.html}Java API tutorial}} gives a short
+      overview of how to evaluate FPath queries, load and invoke
+      FScript reconfiguration from a Java program. It assumes the
+      reader knows the languages themselves and concentrate on the
+      APIs exposed by the FScript implementation.
+
+~~    * The new version of FScript (2.0) is actually not tied to the
+~~      Fractal component model. It is designed to be extensible, so
+~~      that it is possible to target other "component models" (actually
+~~      any structured way to introspect and/or manipulate software
+~~      architectures). The {{{tutorial-extension.html}FScript extension
+~~      tutorial}} gives a brief overview of the underlying concepts,
+~~      and of the different steps required to extend FScript to a new
+~~      model. People who actually want to create their own extensions
+~~      should start with this document to get an idea of what is
+~~      required, and then read the more complete treatment in the
+~~      implementation reference manual and Javadoc.
+
+* Reference Manuals
+
+  The FScript documentation also includes more in-depth reference
+  material:
+
+    * The {{{reference-lang.html}language reference manual}} describes
+      all the details of the FPath and FScript languages, including
+      the languages grammars (syntax), informal semantics, and
+      standard library of procedures. It also describes the standard
+      <backend> which targets the Fractal component model.
+
+~~    * The {{{reference-implem.html}implementation reference manual}}
+~~      describes the actual implementation of FScript 2.0. FScript 2.0
+~~      is itself implemented in Fractal and features an extensible
+~~      architecture. The manual describes several possible extensions
+~~      points, and in particular how to replace the target model (by
+~~      default Fractal) to use FScript with other component
+~~      technologies. This manual only describes the overall
+~~      architecture at a relatively coarse-grained level. The details
+~~      are available in the actual implementation's <Javadoc>.
+
+    * The full {{{fscript/apidocs/index.html}Javadoc for FScript
+      APIs}} is also available.

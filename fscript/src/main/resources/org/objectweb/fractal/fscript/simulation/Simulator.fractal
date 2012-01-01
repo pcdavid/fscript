@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!--
+    Copyright (c) 2007-2008 ARMINES
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License version 2.1 as published by the Free Software Foundation.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+    Contact: fractal@objectweb.org
+  -->
+<!DOCTYPE definition PUBLIC "-//objectweb.org//DTD Fractal ADL 2.0//EN"
+          "classpath://org/objectweb/fractal/adl/xml/standard.dtd">
+<!-- This component implements a simulator for FPath and FScript
+     programs. It uses the same interpreter as for the standard script
+     execution, but connects it to a "fake" model which does not
+     modify the target system. -->
+<definition name="org.objectweb.fractal.fscript.simulation.Simulator"
+            extends="org.objectweb.fractal.fscript.ReporterType">
+
+  <!-- External interfaces -->
+  <interface name="simulator"
+             role="server"
+             signature="org.objectweb.fractal.fscript.simulation.Simulator" />
+
+  <interface name="library"
+             role="client"
+             signature="org.objectweb.fractal.fscript.Library" />
+
+  <interface name="model"
+             role="client"
+             signature="org.objectweb.fractal.fscript.model.Model" />
+
+  <!-- Implementation -->
+  <component name="driver"
+             definition="org.objectweb.fractal.fscript.simulation.SimulationDriver" />
+
+  <component name="simulation-model"
+             definition="org.objectweb.fractal.fscript.simulation.DerivedModel" />
+
+  <component name="simulation-lib"
+             definition="org.objectweb.fractal.fscript.simulation.SimulationLibrary" />
+
+  <!-- Exports -->
+  <binding client="this.simulator"                   server="driver.simulator" />
+  <!-- The driver requirements -->
+  <binding client="driver.derived-node-mapper"       server="simulation-model.derived-node-mapper" />
+  <binding client="driver.tracer"                    server="simulation-model.tracer" />
+  <binding client="driver.library"                   server="simulation-lib.library" />
+  <binding client="driver.diagnostics"               server="this.diagnostics" />
+  <binding client="driver.logger"                    server="this.logger" />
+
+  <!-- The simulation-model requirements -->
+  <binding client="simulation-model.base-model"      server="this.model" />
+
+  <!-- The simulation-lib requirements -->
+  <binding client="simulation-lib.base-library"      server="this.library" />
+  <binding client="simulation-lib.model-library"     server="simulation-model.native-library" />
+  <binding client="simulation-lib.diagnostics"       server="this.diagnostics" />
+  <binding client="simulation-lib.logger"            server="this.logger" />
+</definition>

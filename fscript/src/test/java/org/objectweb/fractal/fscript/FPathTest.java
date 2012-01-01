@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,51 +16,44 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
 
 import static org.junit.Assert.*;
-import static org.objectweb.fractal.fscript.FractalAssert.assertContains;
 
 import java.util.Set;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.objectweb.fractal.api.Component;
-import org.objectweb.fractal.fscript.nodes.ComponentNodeImpl;
-import org.objectweb.fractal.fscript.nodes.Node;
+import org.objectweb.fractal.api.NoSuchInterfaceException;
+import org.objectweb.fractal.api.control.ContentController;
+import org.objectweb.fractal.fscript.model.Node;
+import org.objectweb.fractal.fscript.model.fractal.AttributeNode;
+import org.objectweb.fractal.fscript.model.fractal.ComponentNode;
+import org.objectweb.fractal.fscript.model.fractal.NodeFactory;
 import org.objectweb.fractal.util.Fractal;
 
-public class FPathTest {
-    private FScriptInterpreter fscript;
+public class FPathTest extends FractalTestCase {
+    private static FScriptEngine engine;
 
-    private Component comanche;
+    private static ComancheHelper helper;
 
-    private Component frontend;
+    private static NodeFactory nodeFactory;
 
-    @Before
-    public void setUp() throws Exception {
-        fscript = new FScriptInterpreter();
-        comanche = FactoryHelper.newComanche();
-        Node node = fscript.createComponentNode(comanche);
-        fscript.getEnvironment().setVariable("root", node);
-
-        Component[] kids = Fractal.getContentController(comanche).getFcSubComponents();
-        for (Component kid : kids) {
-            String name = Fractal.getNameController(kid).getFcName();
-            if ("fe".equals(name)) {
-                frontend = kid;
-                break;
-            }
-        }
-        if (frontend == null) {
-            throw new AssertionError("Can't find printer component.");
-        }
+    @BeforeClass
+    public static void setUp() throws Exception {
+        Component fscript = FScript.newEngine();
+        engine = FScript.getFScriptEngine(fscript);
+        nodeFactory = FScript.getNodeFactory(fscript);
+        helper = new ComancheHelper();
+        Node node = nodeFactory.createComponentNode(helper.comanche);
+        engine.setGlobalVariable("root", node);
     }
 
     private Object eval(String expr) throws FScriptException {
-        return fscript.evaluate(expr, null);
+        return engine.execute(expr);
     }
 
     @SuppressWarnings("unchecked")
@@ -76,9 +69,9 @@ public class FPathTest {
         Set<Node> nodes = nodeQuery("$root/child::*");
         assertEquals(2, nodes.size());
         for (Node element : nodes) {
-            assertTrue(element instanceof ComponentNodeImpl);
-            Component kid = ((ComponentNodeImpl) element).getComponent();
-            assertContains(comanche, kid);
+            assertTrue(element instanceof ComponentNode);
+            Component kid = ((ComponentNode) element).getComponent();
+            assertTrue(kid == helper.frontend || kid == helper.backend);
         }
     }
 
@@ -89,16 +82,16 @@ public class FPathTest {
         assertEquals(3, nodes.size());
         boolean selfFound = false;
         for (Node element : nodes) {
-            assertTrue(element instanceof ComponentNodeImpl);
-            if (((ComponentNodeImpl) element).getComponent().equals(comanche)) {
+            assertTrue(element instanceof ComponentNode);
+            if (((ComponentNode) element).getComponent().equals(helper.comanche)) {
                 if (selfFound) {
                     fail("Found self twice.");
                 } else {
                     selfFound = true;
                 }
             } else {
-                Component kid = ((ComponentNodeImpl) element).getComponent();
-                assertContains(comanche, kid);
+                Component kid = ((ComponentNode) element).getComponent();
+                assertContains(helper.comanche, kid);
             }
         }
         assertTrue(selfFound);
@@ -109,7 +102,7 @@ public class FPathTest {
     public void findFrontendByName() throws Exception {
         Set<Node> nodes = nodeQuery("$root/child::fe");
         assertEquals(1, nodes.size());
-        assertEquals(nodes.iterator().next(), fscript.createComponentNode(frontend));
+        assertEquals(nodes.iterator().next(), nodeFactory.createComponentNode(helper.frontend));
     }
 
     @SuppressWarnings("unchecked")
@@ -117,7 +110,7 @@ public class FPathTest {
     public void findFrontendByPredicate() throws Exception {
         Set<Node> nodes = nodeQuery("$root/child::*[name(current()) == 'fe']");
         assertEquals(1, nodes.size());
-        assertEquals(nodes.iterator().next(), fscript.createComponentNode(frontend));
+        assertEquals(nodes.iterator().next(), nodeFactory.createComponentNode(helper.frontend));
     }
 
     @SuppressWarnings("unchecked")
@@ -125,7 +118,7 @@ public class FPathTest {
     public void findServerChildByPredicateWithDot() throws Exception {
         Set<Node> nodes = nodeQuery("$root/child::*[name(.) == 'fe']");
         assertEquals(1, nodes.size());
-        assertEquals(nodes.iterator().next(), fscript.createComponentNode(frontend));
+        assertEquals(nodes.iterator().next(), nodeFactory.createComponentNode(helper.frontend));
     }
 
     @SuppressWarnings("unchecked")
@@ -137,14 +130,43 @@ public class FPathTest {
 
     @Test
     public void findConfigurableComponents() throws Exception {
-        Set<Node> configurable = nodeQuery("$root/descendant-or-self::*[attribute::*]");
+        Set<Node> configurable = nodeQuery("$root/descendant-or-self::*[./attribute::*]");
         assertTrue(configurable.isEmpty());
     }
-    
+
     @Test
-    public void relativePath() throws FScriptException {
-        Node node = fscript.createComponentNode(comanche);
-        Object result = fscript.evaluateFrom("./child::*", node);
-        assertTrue(result instanceof Set);
+    public void findAttributesInHelloWorld() throws Exception {
+        Component hello = new HelloWorldHelper().hello;
+        engine.setGlobalVariable("hello", nodeFactory.createComponentNode(hello));
+        Set<Node> attrs = nodeQuery("$hello/descendant-or-self::*/attribute::*");
+        assertEquals(2, attrs.size());
+        boolean foundHeader = false;
+        boolean foundCount = false;
+        for (Node n : attrs) {
+            assertTrue(n instanceof AttributeNode);
+            AttributeNode attr = (AttributeNode) n;
+            if (attr.getName().equals("header")) {
+                foundHeader = true;
+            } else if (attr.getName().equals("count")) {
+                foundCount = true;
+            }
+        }
+        assertTrue(foundHeader && foundCount);
+    }
+    
+
+    void assertContains(Component parent, Component kid) {
+        try {
+            ContentController cc = Fractal.getContentController(parent);
+            Component[] allKids = cc.getFcSubComponents();
+            for (Component element : allKids) {
+                if (kid == element) {
+                    return;
+                }
+            }
+            fail("Composite " + parent + " does not contain " + kid + ".");
+        } catch (NoSuchInterfaceException e) {
+            fail("Parent argument is not composite.");
+        }
     }
 }

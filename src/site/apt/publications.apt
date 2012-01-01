@@ -1,0 +1,35 @@
+                                 ---
+                        FScript-related Publications
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+FScript-related Publications
+
+  The FScript project has been subject to several publications over
+  the years. In reverse chronological order:
+
+  * <<Experience with implementing safe reconfigurations in component-based embedded
+    systems>>, Juraj Polakovic, Sébastien Mazaré, Jean-Bernard Stefani, and Pierre-Charles
+    David, in <Proceedings of the 10th International ACM SIGSOFT Symposium on
+    Component-Based Software Engineering (CBSE 2007)>, Boston, MA, USA, July 2007.
+
+  * <<Safe Dynamic Reconfigurations of Fractal Architectures with FScript>>, Pierre-Charles
+    David and Thomas Ledoux, in <Proceedings of the 5th Fractal Workshop at ECOOP 2006>,
+    Nantes, France, July 2006.
+
+  * <<An Aspect-Oriented Approach for Developing Self-Adaptive Fractal Components>>,
+    Pierre-Charles David and Thomas Ledoux, in <Proceedings of the 5th International
+    Symposium on Software Composition (SC 2006)>, Lecture Notes in Computer Science, vol.
+    4089, Vienna, Austria, March 2006.
+
+  * <<Une approche par aspects pour le développement de composants Fractal adaptatifs>>,
+    Pierre-Charles David and Thomas Ledoux, <RSTI – L'Objet, Volume 12 – n°2-3/2006>,
+    Hermès Sciences/Lavoisier, 2006. This is a very slightly corrected/extended version of
+    a paper at the JFDLPA 2005 workshop. This volume of L'Objet serves as post-proceedings
+    of the workshop.
+
+  * <<Développement de composants Fractal adaptatifs: un langage dédié à l'aspect
+    d'adaptation>> (<Development of self-adaptive Fractal components: a domain-specific
+    language for the adaptation aspect>), Pierre-Charles David, PhD Thesis, École des
+    Mines de Nantes and Université de Nantes, July 2005.

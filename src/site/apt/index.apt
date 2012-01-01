@@ -1,0 +1,62 @@
+                                 ---
+			       FScript
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+Welcome to the FScript project
+
+  <<FScript>> is a Domain-Specific Language (DSL) to program dynamic
+  reconfigurations of {{{http://fractal.objectweb.org}Fractal}}
+  architectures. FScript includes the <<FPath>> notation to navigate
+  inside Fractal architectures, which can be used by itself as a query
+  language for Fractal.
+
+  The FPath notation is inspired by the XPath language for XML
+  navigation and query. If you have some notions of XPath, learning
+  FPath should be easy. FPath makes it trivial to navigate inside even
+  large and complex Fractal architecture with simple and readable
+  queries, where the raw Fractal APIs would requires pages of code.
+
+  FScript itself can be thought of as a <scripting> language dedicated
+  to Fractal components architectural reconfigurations. It builds upon
+  FPath but adds the possibility to define reconfiguration scripts to
+  modify the architecture of a Fractal application. Like FPath,
+  FScript is much more concise the direct API usage. In addition, the
+  FScript interpreter can provide transactional support for
+  architectural reconfigurations by seamlessly integrating with an
+  extended version of Julia (this work is done by Marc Léger at France
+  Télécom and is not publicly available for now).
+
+News
+
+  * {{{news.html#FScript_2.0_Released}FScript 2.0 Released}}
+
+  * {{{news.html#FPath_and_FScript_in_the_TCS_Zoo}FPath and FScript in the TCS Zoo}}
+
+ See more details on {{{news.html}the news page}}.
+
+More information
+
+  * An overview of {{{features.html}features}} of both languages.
+
+  * {{{installing.html}Installation instructions}}.
+
+  * The {{{documentation.html}documentation}} for both languages,
+    including tutorials and reference manuals.
+
+  * A list of {{{publications.html}publications}} related to FPath and
+    FScript.
+
+Mailing list
+
+  Questions, comments, ideas, etc. related to Fractal can be posted on
+  the {{{mail-lists.html}Fractal mailing list}} (preferably prefixing
+  your email subject with <<[fscript]>>).
+
+License
+
+  Both FPath and FScript are Free Software released under the
+  {{{http://www.gnu.org/licenses/old-licenses/gpl-2.0.html}Lesser
+  General Public License}} version 2.0. See the source files for the
+  copyright details.

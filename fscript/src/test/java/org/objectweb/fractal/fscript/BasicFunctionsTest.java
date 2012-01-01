@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,150 +16,148 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
 
 import static org.junit.Assert.*;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.objectweb.fractal.api.Component;
 
 /**
  * Tests for functions which do not involve Fractal.
  * 
- * @author Pierre-Charles David <pcdavid@gmail.com>
+ * @author Pierre-Charles David
  */
-public class BasicFunctionsTest {
-    private FScriptInterpreter fscript;
+public class BasicFunctionsTest extends FractalTestCase {
+    private static FScriptEngine engine;
 
-    @Before
-    public void setUp() {
-        fscript = new FScriptInterpreter();
+    @BeforeClass
+    public static void setUp() throws Exception {
+        Component fscript = FScript.newEngine();
+        engine = FScript.getFScriptEngine(fscript);
     }
 
     @Test
     public void trueFunction() throws Exception {
-        assertTrue(((Boolean) fscript.evaluate("true()", null)).booleanValue());
+        assertTrue(((Boolean) engine.execute("true()")).booleanValue());
     }
 
     @Test
     public void falseFunction() throws Exception {
-        assertFalse(((Boolean) fscript.evaluate("false()", null)).booleanValue());
+        assertFalse(((Boolean) engine.execute("false()")).booleanValue());
     }
 
     @Test
     public void concatFunction() throws Exception {
-        assertEquals("foobar", fscript.evaluate("concat(\"foo\", \"bar\")", null));
-        assertEquals("foobarbaz", fscript.evaluate("concat(\"foo\", \"bar\", \"baz\")",
-                null));
-        assertEquals("foo", fscript.evaluate("concat(\"foo\", \"\")", null));
-        assertEquals("foo", fscript.evaluate("concat(\"\", \"foo\")", null));
+        assertEquals("foobar", engine.execute("concat(\"foo\", \"bar\")"));
+        assertEquals("foobarbaz", engine.execute("concat(\"foo\", concat(\"bar\", \"baz\"))"));
+        assertEquals("foo", engine.execute("concat(\"foo\", \"\")"));
+        assertEquals("foo", engine.execute("concat(\"\", \"foo\")"));
     }
 
     @Test
     public void differentFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 != 2", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 != 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 != \"one\"", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("\"one\" != 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 != true()", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("true() != 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("\"one\" != \"one\"", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("true() != true()", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("false() != false()", null));
+        assertEquals(Boolean.TRUE, engine.execute("1 != 2"));
+        assertEquals(Boolean.FALSE, engine.execute("1 != 1"));
+        assertEquals(Boolean.TRUE, engine.execute("1 != \"one\""));
+        assertEquals(Boolean.TRUE, engine.execute("\"one\" != 1"));
+        assertEquals(Boolean.TRUE, engine.execute("1 != true()"));
+        assertEquals(Boolean.TRUE, engine.execute("true() != 1"));
+        assertEquals(Boolean.FALSE, engine.execute("\"one\" != \"one\""));
+        assertEquals(Boolean.FALSE, engine.execute("true() != true()"));
+        assertEquals(Boolean.FALSE, engine.execute("false() != false()"));
     }
 
     @Test
     public void endsWithFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("ends-with(\"foobar\", \"bar\")",
-                null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("ends-with(\"foobar\", \"foo\")",
-                null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("ends-with(\"\", \"bar\")", null));
+        assertEquals(Boolean.TRUE, engine.execute("ends-with(\"foobar\", \"bar\")"));
+        assertEquals(Boolean.FALSE, engine.execute("ends-with(\"foobar\", \"foo\")"));
+        assertEquals(Boolean.FALSE, engine.execute("ends-with(\"\", \"bar\")"));
     }
 
     @Test
     public void equalsFunction() throws Exception {
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 == 2", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 == 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 == \"one\"", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("\"one\" == 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 == true()", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("true() == 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("\"one\" == \"one\"", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("true() == true()", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("false() == false()", null));
+        assertEquals(Boolean.FALSE, engine.execute("1 == 2"));
+        assertEquals(Boolean.TRUE, engine.execute("1 == 1"));
+        assertEquals(Boolean.FALSE, engine.execute("1 == \"one\""));
+        assertEquals(Boolean.FALSE, engine.execute("\"one\" == 1"));
+        assertEquals(Boolean.FALSE, engine.execute("1 == true()"));
+        assertEquals(Boolean.FALSE, engine.execute("true() == 1"));
+        assertEquals(Boolean.TRUE, engine.execute("\"one\" == \"one\""));
+        assertEquals(Boolean.TRUE, engine.execute("true() == true()"));
+        assertEquals(Boolean.TRUE, engine.execute("false() == false()"));
     }
 
     @Test
     public void greaterThanFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 > 0", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 > -1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 > -1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 > 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 > 0", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 > 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 > -1", null));
+        assertEquals(Boolean.TRUE, engine.execute("1 > 0"));
+        assertEquals(Boolean.TRUE, engine.execute("1 > -1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 > -1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 > 1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 > 0"));
+        assertEquals(Boolean.FALSE, engine.execute("1 > 1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 > -1"));
     }
 
     @Test
     public void greaterThanOrEqualFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 >= 0", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 >= -1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 >= -1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 >= 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 >= 0", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 >= 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 >= -1", null));
+        assertEquals(Boolean.TRUE, engine.execute("1 >= 0"));
+        assertEquals(Boolean.TRUE, engine.execute("1 >= -1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 >= -1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 >= 1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 >= 0"));
+        assertEquals(Boolean.TRUE, engine.execute("1 >= 1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 >= -1"));
     }
 
     @Test
     public void lessThanFunction() throws Exception {
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 < 0", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 < -1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 < -1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 < 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 < 0", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 < 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 < -1", null));
+        assertEquals(Boolean.FALSE, engine.execute("1 < 0"));
+        assertEquals(Boolean.FALSE, engine.execute("1 < -1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 < -1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 < 1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 < 0"));
+        assertEquals(Boolean.FALSE, engine.execute("1 < 1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 < -1"));
     }
 
     @Test
     public void lessThanOrEqualFunction() throws Exception {
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 <= 0", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("1 <= -1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 <= -1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 <= 1", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("0 <= 0", null));
-        assertEquals(Boolean.TRUE, fscript.evaluate("1 <= 1", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("0 <= -1", null));
+        assertEquals(Boolean.FALSE, engine.execute("1 <= 0"));
+        assertEquals(Boolean.FALSE, engine.execute("1 <= -1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 <= -1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 <= 1"));
+        assertEquals(Boolean.TRUE, engine.execute("0 <= 0"));
+        assertEquals(Boolean.TRUE, engine.execute("1 <= 1"));
+        assertEquals(Boolean.FALSE, engine.execute("0 <= -1"));
     }
 
     @Test
     public void notFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("not(false())", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("not(true())", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("not(1)", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("not(\"foo\")", null));
+        assertEquals(Boolean.TRUE, engine.execute("not(false())"));
+        assertEquals(Boolean.FALSE, engine.execute("not(true())"));
+        assertEquals(Boolean.FALSE, engine.execute("not(1)"));
+        assertEquals(Boolean.FALSE, engine.execute("not(\"foo\")"));
     }
 
     @Test
     public void sizeFunction() throws Exception {
-        assertEquals(0.0, fscript.evaluate("size(\"\")", null));
-        assertEquals(3.0, fscript.evaluate("size(\"foo\")", null));
-        assertEquals(1.0, fscript.evaluate("size(\"\\n\")", null));
-        assertEquals(0.0, fscript.evaluate("size(0)", null));
-        assertEquals(1.0, fscript.evaluate("size(1)", null));
-        assertEquals(-1.0, fscript.evaluate("size(-1)", null));
-        assertEquals(1.5, fscript.evaluate("size(1.5)", null));
+        assertEquals(0.0, engine.execute("size(\"\")"));
+        assertEquals(3.0, engine.execute("size(\"foo\")"));
+        assertEquals(1.0, engine.execute("size(\"\\n\")"));
+        assertEquals(0.0, engine.execute("size(0)"));
+        assertEquals(1.0, engine.execute("size(1)"));
+        assertEquals(-1.0, engine.execute("size(-1)"));
+        assertEquals(1.5, engine.execute("size(1.5)"));
     }
 
     @Test
     public void startsWithFunction() throws Exception {
-        assertEquals(Boolean.TRUE, fscript.evaluate("starts-with('foobar', 'foo')", null));
-        assertEquals(Boolean.FALSE, fscript
-                .evaluate("starts-with('foobar', 'bar')", null));
-        assertEquals(Boolean.FALSE, fscript.evaluate("starts-with('', 'bar')", null));
+        assertEquals(Boolean.TRUE, engine.execute("starts-with('foobar', 'foo')"));
+        assertEquals(Boolean.FALSE, engine.execute("starts-with('foobar', 'bar')"));
+        assertEquals(Boolean.FALSE, engine.execute("starts-with('', 'bar')"));
     }
 }

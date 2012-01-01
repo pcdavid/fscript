@@ -1,0 +1,223 @@
+-- Define more convenient aliases for procedures which are automatically defined
+-- (and named) from the model.
+
+action add(parent, child) {
+  add-child($parent, $child);
+}
+
+action remove(parent, child) {
+  remove-child($parent, $child);
+}
+
+action start(comp) {
+  set-state($comp, "STARTED");
+} 
+
+action stop(comp) {
+  set-state($comp, "STOPPED");
+}
+
+action bind(clItf, srvItf) {
+  add-binding($clItf, $srvItf);
+}
+
+action unbind(clItf) {
+  remove-binding($clItf, $clItf/binding::*);
+}
+
+-- Core functions which could have been written in Java but are done
+-- in FScript to keep the code base smaller.
+
+-- Tests the cardinality of an interface. Returns true iff it is a
+-- single interface.
+function single(itf) {
+  return not(collection($itf));
+}
+
+-- Tests the role of an interface. Returns true iff it is a server
+-- interface.
+function server(itf) {
+  return not(client($itf));
+}
+
+-- Tests the contingency of an interface. Returns true iff it is a
+-- mandatory interface.
+function mandatory(itf) {
+  return not(optional($itf));
+}
+
+-- Tests the visibility of an interface. Returns true iff it is an
+-- external interface.
+function external(itf) {
+  return not(internal($itf));
+}
+
+-- Tests the life-cycle state of a component. Returns true iff it is
+-- STARTED.
+function started(comp) {
+  return $comp/interface::lifecycle-controller && (state($comp) == "STARTED");
+}
+
+-- Tests the life-cycle state of a component. Returns true iff it is
+-- STOPPED.
+function stopped(comp) {
+  return $comp/interface::lifecycle-controller && (state($comp) == "STOPPED");
+}
+
+-- Tests the binding state of an interface. Returns true iff it is a
+-- client interface and is currently bound.
+function bound(itf) {
+  return client($itf) && (size($itf/binding::*) > 0);
+}
+
+-- Alias for set-name()
+action rename(c, n) {
+  return set-name($c, $n);
+}
+
+-- General utilities
+
+-- Tests the category of an interface. Returns true iff it is a
+-- control interface. This function assumes non-standard controller
+-- interfaces follow the standard naming conventions.
+function controller-itf(itf) {
+  return matches(name($itf), '(component|.*-controller)');
+}
+
+-- Tests the category of an interface. Returns true iff it is a
+-- service interface. This function assumes non-standard controller
+-- interfaces follow the standard naming conventions.
+function service-itf(itf) {
+  return not(controller-itf($itf));
+}
+
+-- Tests the kind of a component. Returns true iff it is a composite.
+function is-composite(comp) {
+  return $comp/interface::content-controller;
+}
+
+-- Tests the kind of a component. Returns true iff it is a primitive.
+function is-primitive(comp) {
+  return not(is-composite($comp));
+}
+
+-- Selects all the external service interfaces of a component.
+function service-itfs(c) {
+  return $c/interface::*[not(controller-itf(.))];
+}
+
+-- Selects all the control interfaces of a component.
+function controller-itfs(c) {
+  return $c/interface::*[controller-itf(.)];
+}
+
+-- Creates a "copy" of a component. For now the copy is just an empty
+-- composite which exposes the same type as the original (except for
+-- the attribute-controller).
+action copy(c) {
+  return new-composite(service-itfs($c));
+}
+
+-- Destroys all the bindings involving a component $c (to or from $c)
+-- which are local to one of its parents $p. After completion, $c can
+-- safely be removed from $p.
+action disconnect(c, p) {
+  -- Unbind client interfaces from c which are bound
+  -- to a local (to p) server component.
+  for i : $c/interface::*[client(.)] {
+    if (intersection($p/component::*, $i/binding::*/component::*)) {
+      unbind($i);
+    }
+  }
+  -- Unbind export bindings of $c by $p, i.e. internal client
+  -- interfaces of $p bound to server interfaces of $c.
+  for i : $p/internal-interface::*[client(.)] {
+    if (intersection($c/component::*, $i/binding::*/component::*)) {
+      unbind($i);
+    }
+  }
+  -- Finally unbind bindings from sub-components of $p to server
+  -- interfaces of $c.
+  for i : $p/child::*/interface::*[client(.)] {
+    if (intersection($c/component::*, $i/binding::*/component::*)) {
+      unbind($i);
+    }
+  }
+}
+
+-- Tests whether the client interface $itf is bound to
+-- (an interface of) component $comp.
+function bound-to(itf, comp) {
+  servers = $itf/binding::*/component::*;
+  return size(intersection($servers, $comp/component::*)) > 0;
+}
+
+-- Finds all the client interfaces which are bound to the
+-- component $comp.
+function bindings-to(comp) {
+  itfs = $comp/parent::*/internal-interface::*[bound-to(., $comp)];
+  itfs = union($itfs, $comp/sibling::*/interface::*[bound-to(., $comp)]);
+  return $itfs;
+}
+
+-- Makes sure that $dest is in the same lifecycle state as $src.
+-- Assumes the standard lifecycle (STARTED, STOPPED).
+action copy-state(src, dest) {
+  if (started($src)) {
+    start($dest);
+  } else {
+    stop($dest);
+  }
+}
+
+-- Copies the value of all the attributes of component $src
+-- to the attributes of the same name in component $dest.
+action copy-attributes(src, dest) {
+  for oldAttr : $src/attribute::* {
+    newAttr = $dest/attribute::*[name(.) == name($oldAttr)];
+    set-value($newAttr, value($oldAttr));
+  }
+}
+
+-- Replaces $oldComp with $newComp everywhere in the architecture.
+action replace(oldComp, newComp) {
+  -- Add the new component everywhere the old one is present.
+  for p : $oldComp/parent::* {
+    add($p, $newComp);
+  }
+  -- Replace all the bindings involving oldComp with an
+  -- equivalent (based on interface name) binding with newComp:
+  -- 1. Bindings from oldComp
+  for client : $oldComp/interface::*[client(.)][bound(.)] {
+    itfName = name($client);
+    server = $client/binding::*;
+    unbind($client);
+    bind($newComp/interface::$itfName, $server);
+  }
+  -- 2. Bindings to oldComp
+  for client : bindings-to($oldComp) {
+    itfName = name($client/binding::*); -- Match on the server side
+    unbind($client);
+    bind($client, $newComp/interface::$itfName);
+  }
+  copy-attributes($oldComp, $newComp);
+  copy-state($oldComp, $newComp);
+  -- Remove the old component
+  for p : $oldComp/parent::* {
+    remove($p, $oldComp);
+  }
+}
+
+function one-of(nodes) {
+  for n : $nodes {
+    return $n;
+  }
+}
+
+function common-ancestors(comp) {
+  result = $comp/ancestor::*;
+  for c : $comp {
+    result = intersection($result, $c/ancestor::*);
+  }
+  return $result;
+}

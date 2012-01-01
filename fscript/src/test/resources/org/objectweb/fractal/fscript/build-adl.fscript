@@ -1,8 +1,8 @@
 action switch-adl-backend() {
-  adl = new("org.objectweb.fractal.adl.BasicFactory",
+  adl = adl-new("org.objectweb.fractal.adl.BasicFactory",
             "fractaladl.backend",
       	    "org.objectweb.fractal.adl.FractalBackend");
-  javaBackend = new("org.objectweb.fractal.adl.JavaBackend");
+  javaBackend = adl-new("org.objectweb.fractal.adl.JavaBackend");
   compiler = $adl/child::compiler;
   fractalBackend = $adl/child::backend;
   add($adl, $java);

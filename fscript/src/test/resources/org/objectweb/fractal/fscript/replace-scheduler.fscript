@@ -2,9 +2,10 @@ action replace-scheduler(comanche) {
   fe = $comanche/child::fe;
   rr = $fe/child::rr;
   oldSched = $fe/child::s;
-  unbind($rr/interface::s[client(.)]);
+  cl = $rr/interface::s[client(.)];
+  unbind($cl);
   remove($fe, $oldSched);
-  sched = new('comanche.MultiThreadScheduler');
+  sched = adl-new('comanche.MultiThreadScheduler');
   set-name($sched, 'new-sched');
   add($fe, $sched);
   bind($rr/interface::s, $sched/interface::s);

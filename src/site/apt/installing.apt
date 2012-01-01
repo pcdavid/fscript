@@ -1,0 +1,82 @@
+                                 ---
+                   Obtaining and Installing FScript
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+Obtaining and Installing FScript
+
+  The best way to install FScript depends on how you want to use it.
+
+* Using FScript interactively through the console
+
+  If you simply want to experiment with FPath and FScript to see how
+  they work, you can get the {{{TODO}fully self-contained distribution}}
+  which includes: FScript itself, the interactive console application,
+  and all their dependencies.
+
+  See {{{fscript-console/index.html}the console's page}} for more
+  instructions. If you're new to FPath and FScript, once this package
+  is installed the next stop is to read the
+  {{{documentation.html}tutorials}}.
+
+* Using FScript from a Maven project
+
+  If you want to use FPath and/or FScript from your Java programs and
+  you already use Maven for you project, simply add the following
+  dependency to your POM:
+
++--
+<dependency>
+  <groupId>org.objectweb.fractal.fscript</groupId>
+  <artifactId>fscript</artifactId>
+  <version>2.0</version>
+</dependency>
++--
+
+  If you don't already have them configured, you must also add the
+  following repositories to your POM:
+
++--
+<repository>
+  <id>objectweb-release</id>
+  <name>ObjectWeb Maven Repository</name>
+  <url>http://maven.objectweb.org/maven2</url>
+  <releases>
+    <enabled>true</enabled>
+  </releases>
+  <snapshots>
+    <enabled>false</enabled>
+  </snapshots>
+</repository>
+<repository>
+  <id>mojo-release</id>
+  <name>Codehaus Mojo</name>
+  <url>http://repository.codehaus.org/org/codehaus/mojo/</url>
+  <releases>
+    <enabled>true</enabled>
+  </releases>
+  <snapshots>
+    <enabled>false</enabled>
+  </snapshots>
+</repository>
+<repository>
+  <id>jboss</id>
+  <name>JBoss.org Repository</name>
+  <url>http://repository.jboss.org/maven2/</url>
+  <releases>
+    <enabled>true</enabled>
+  </releases>
+  <snapshots>
+    <enabled>false</enabled>
+  </snapshots>
+</repository>
++--
+
+* Using FScript from a project which does not use Maven
+
+  If you want to use FPath and/or FScript from your Java programs but
+  your project does not use Maven, you can get the {{{TODO}binary
+  distribution}}, which packages all the FScript modules and their
+  dependencies as individual JARs. You can then use FScript as you
+  would any other Java project.

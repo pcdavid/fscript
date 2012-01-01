@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,17 +16,21 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
 
 import java.util.Collections;
 import java.util.List;
 
+import org.objectweb.fractal.fscript.diagnostics.Diagnostic;
+import org.objectweb.fractal.fscript.diagnostics.DiagnosticCollector;
+import org.objectweb.fractal.fscript.diagnostics.Severity;
+
 /**
  * Generic exception for all the errors which can occur in FScript.
  * 
- * @author Pierre-Charles David <pcdavid@gmail.com>
+ * @author Pierre-Charles David
  */
 public class FScriptException extends Exception {
     private final DiagnosticCollector diagnostics;
@@ -47,7 +51,11 @@ public class FScriptException extends Exception {
     }
 
     public FScriptException(Diagnostic diagnostic) {
-        super(diagnostic.toString());
+        this(diagnostic, null);
+    }
+    
+    public FScriptException(Diagnostic diagnostic, Throwable cause) {
+        super(diagnostic.toString(), cause);
         this.diagnostics = new DiagnosticCollector();
         this.diagnostics.report(diagnostic);
         assert isFatal(diagnostic);
@@ -70,7 +78,7 @@ public class FScriptException extends Exception {
     private boolean isFatal(Diagnostic diagnostic) {
         return diagnostic.getSeverity().compareTo(Severity.ERROR) >= 0;
     }
-    
+
     private boolean atLeastOneFatal(DiagnosticCollector dc) {
         for (Diagnostic diag : dc.getDiagnostics()) {
             if (isFatal(diag)) {

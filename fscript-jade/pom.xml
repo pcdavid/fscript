@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <artifactId>parent</artifactId>
+    <groupId>org.objectweb.fractal.fscript</groupId>
+    <version>2.0</version>
+  </parent>
+
+  <artifactId>fscript-jade</artifactId>
+  <name>FScript extensions for Jade</name>
+  <description>An alternative backend for FScript to support Jade-specific features.</description>
+
+  <contributors>
+    <contributor>
+      <name>Florent Métral</name>
+      <email>Florent.Metral@inrialpes.fr</email>
+      <organization>INRIA Rhône-Alpes</organization>
+      <organizationUrl>http://www.inrialpes.fr/</organizationUrl>
+    </contributor>
+    <contributor>
+      <name>Sylvain Sicard</name>
+      <email>Sylvain.Sicard@inrialpes.fr</email>
+      <organization>INRIA Rhône-Alpes</organization>
+      <organizationUrl>http://www.inrialpes.fr/</organizationUrl>
+    </contributor>
+  </contributors>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.objectweb.fractal.fscript</groupId>
+      <artifactId>fscript</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.jasmine.jade</groupId>
+      <artifactId>jade</artifactId>
+      <version>2.0.0.M2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.jasmine.jade</groupId>
+      <artifactId>jade-fractal</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <scm>
+    <connection>${scm.connection}/fscript/fscript-jade</connection>
+    <developerConnection>${scm.developerConnection}/fscript/fscript-jade</developerConnection>
+    <url>${scm.url}/fscript/fscript-jade</url>
+  </scm>
+</project>

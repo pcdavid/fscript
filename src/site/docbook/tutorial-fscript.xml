@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>FScript Tutorial</title>
+    <author>
+      <firstname>Pierre-Charles</firstname>
+      <surname>David</surname>
+      <email>pcdavid@gmail.com</email>
+    </author>
+  </articleinfo>
+
+  <sect1 id="introduction">
+    <title>What is FScript?</title>
+
+    <para>FScript is a scripting language dedicated to Fractal components
+    architectural reconfigurations. It builds upon FPath but adds the
+    possibility to define reconfiguration scripts to modify the architecture of
+    a Fractal application. Like FPath, FScript is much more concise the direct
+    API usage.</para>
+    
+    <para>This tutorial presents FScript but assumes you already know FPath
+    itself. If that is not the case, read <ulink url="tutorial-fpath.html">the
+    FPath tutorial</ulink> first.</para>
+
+  </sect1>
+
+  <sect1 id="replace">
+    <title>Developing a generic component replacement script</title>
+
+    <para>In order to illustrate the different FScript language features, we will develop
+    a generic reconfiguration script which can be used to replace a component by another
+    one in a Fractal architecture. This could be used for example to update a component to
+    a new version.</para>
+
+    <para>The reconfiguration will be generic in the sense that it should work for any
+    Fractal architecture, not just for a specific application. The final result will be a
+    new reconfiguration action named <function>replace()</function>, which takes two
+    components as its arguments. The first one is the old component, and the second one is
+    the new component to use to replace the old. The script will assume that the new
+    component is compatible with the old one (i.e. it can be sustituted for it in the
+    architecture).</para>
+
+    <para>Because the replacement operation involves several steps, we will develop it
+    piece by piece, and define helper procedures. Each of these will illustrate new
+    features of the language.</para>
+
+    <para>The actual steps our final <function>replace()</function> action will need to
+    perform are:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>First, it needs to add the new component in the target architecture
+        everywhere the old component appeared.</para>
+      </listitem>
+
+      <listitem>
+        <para>The action can then update all the bindings which involved interfaces from
+        the old component to use the corresponding interface on the new component instead.
+        Here we will match interfaces by name, assuming the new component uses the same
+        names for the same interfaces. Note that in this step the action needs to update
+        both bindings <emphasis>from</emphasis> the old component and bindings
+        <emphasis>to</emphasis> it.</para>
+      </listitem>
+
+      <listitem>
+        <para>The action will then copy the values of the old component's attributes into
+        the new component's.</para>
+      </listitem>
+
+      <listitem>
+        <para>It will then make sure that the new component is in the same life-cycle state
+        (<constant>STARTED</constant> or <constant>STOPPED</constant>) that the old
+        one.</para>
+      </listitem>
+
+      <listitem>
+        <para>Finally, the last step is to remove the old component from the architecture,
+        as it is now completely replaced by the new one.</para>
+      </listitem>
+    </orderedlist>
+
+    <note>
+      <para>The different procedures developed in this tutorial are actually available by
+      default in FScript as they are part of the standard library.</para>
+    </note>
+  </sect1>
+
+  <sect1 id="bound-to">
+    <title>Defining new helper functions to use in FPath expressions</title>
+
+    <para>We will start by defining a new helper <emphasis>function</emphasis> which we
+    will reuse later. The function tests whether a given interface is connected to a
+    component. It is defined like this:</para>
+
+    <screen><![CDATA[
+-- Tests whether the client interface $itf is bound to
+-- (an interface of) component $comp.
+function bound-to(itf, comp) {
+  servers = $itf/binding::*/component::*;
+  return size($servers & $comp) > 0;
+}]]></screen>
+
+    <para>The first two lines are simply comments: they start with <literal>--</literal>
+    and go on until the end of the line. This syntax is different from the C/C++ style
+    which was used in FScript 1.0, because the old style was incompatible with the new
+    FPath shortcuts (which allows things like <literal>$c//*</literal>).</para>
+
+    <para>Line 3 says we are defining a new <emphasis>function</emphasis>, which is named
+    <literal>bound-to</literal> and takes two arguments <literal>itf</literal> and
+    <literal>comp</literal>. The use of the keyword <literal>function</literal> advertises
+    the fact that this procedure will only do introspection, and will not have any
+    side-effect on the target architecture. FScript distinguishes between
+    <emphasis>functions</emphasis>, which are side-effects free, and
+    <emphasis>actions</emphasis>, which can modify the architecture. Functions can only
+    call other functions, and can be used inside FPath expressions. Actions can call other
+    actions (either pre-defined or programmed in FScript by the user) but can not be used
+    in FPath expressions (for example in filtering predicates).</para>
+
+    <para>The body of the function is very simple: a simple sequence of two statements.
+    The first one, on line 4, defines a new variable <literal>servers</literal> as the
+    result of a query. The query uses the first argument of the function,
+    <literal>$itf</literal>, as a normal variable. Here, the new variable will contain the
+    set of components who own a server interface bound to any client interface in
+    <literal>$itf</literal>. The final line specifies the value to
+    <emphasis>return</emphasis>, as the value of the FPath expression <literal>size(...)
+    &gt; 0</literal>. It uses the set intersection operator (<literal>&amp;</literal>) to
+    check whether the <literal>$comp</literal> argument is in the set of servers in
+    <literal>$servers</literal>.</para>
+
+    <para>Given a set of interfaces <literal>$itf</literal> and a set of components
+    <literal>$comp</literal>, the function will thus return true if and only if at least
+    one of the interfaces in <literal>$itf</literal> is <emphasis>bound to</emphasis> a
+    server interface own by one of <literal>$comp</literal>.</para>
+
+  </sect1>
+
+  <sect1 id="binding-to">
+    <title>Finding reverse dependencies</title>
+
+    <para>As part of our <literal>replace()</literal> operation, we will need to update
+    both bindings going <emphasis>from</emphasis> the old component and bindings coming
+    <emphasis>to</emphasis> it. Identifying the first first kind is trivial: it
+    corresponds to the <literal>lookupFc()</literal> operation in Fractal, and to
+    following the <literal>binding</literal> axis in FPath. The second part is more
+    involved, as it is not immediate in Fractal to follow bindings from the server
+    interface to the client.</para>
+
+    <para>We will write a new helper function named <literal>bindings-to()</literal>,
+    which takes a component as its single argument and returns all the interfaces, from
+    anywhere in the architecture, which are bound to it (or more precisely to one of its
+    interfaces). Here is the code for <literal>bindings-to()</literal>:</para>
+
+    <screen><![CDATA[
+-- Finds all the client interfaces which are bound to the
+-- component $c.
+function bindings-to(c) {
+  import_export = $c/parent::*/internal-interface::*[bound-to(., $c)];
+  normal = $c/sibling::*/interface::*[bound-to(., $c)];
+  return $import_export | $normal;
+}]]></screen>
+
+    <para>Structurally, it is not very different from <literal>bound-to()</literal> in the
+    previous section: it simply computes a complex FPath query in several steps using
+    intermediary variables.</para>
+
+    <para>Here we use the fact that in Fractal, bindings are always local: they can be
+    either between sibling components (which share a common parent) or between a component
+    and an internal interface of one of its direct parents (in the case of import/export
+    bindings):</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>The first part of the query, on line 4, selects all the internal interfaces
+        from <literal>$c</literal>'s parents, but uses the <literal>bound-to()</literal>
+        helper we've defined earlier to retain only those which are actually connected to
+        <literal>$c</literal>. This takes care of the import/export bindings
+        <emphasis>to</emphasis> component <literal>$c</literal>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The second part of the query, on line 5, selects all the external
+        interfaces, from any of <literal>$c</literal> siblings, which are connected to it
+        (again, we reuse our <literal>bound-to()</literal> helper function in the
+        predicate). This takes care of the normal bindings <emphasis>to</emphasis>
+        component <literal>$c</literal>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The final line simply returns the union of both node-sets.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Note that although this function is written in several steps for readability, it
+    could have been written using a single FPath expression:</para>
+
+    <screen><![CDATA[
+function bindings-to(c) {
+  return = $c/parent::*/internal-interface::*[bound-to(., $c)] | $c/sibling::*/interface::*[bound-to(., $c)];
+}]]></screen>
+
+  </sect1>
+
+  <sect1 id="copy-lc-state">
+    <title>Using alternatives to reproduce the life-cycle state</title>
+
+    <para>Until now, we've only defined <emphasis>functions</emphasis>, which can not
+    actually modify the target architecture. We will now write our first reconfiguration
+    <emphasis>action</emphasis>, whose goal is to make sure that the new component we use
+    for the replacement is in the same life-cycle state as the old one.</para>
+
+    <para>Here we will assume that the components' life-cycle is the standard life-cycle
+    defined by default in Fractal, with only two states: <literal>STARTED</literal> and
+    <literal>STOPPED</literal>.</para>
+
+    <para>Here is the (very simple) code for the <literal>copy-lc-state()</literal>
+    action:</para>
+
+    <screen><![CDATA[
+-- Makes sure that $dest is in the same lifecycle state as $src.
+-- Assumes the standard lifecycle (STARTED, STOPPED).
+action copy-lc-state(src, dest) {
+  if (started($src)) {
+    start($dest);
+  } else {
+    stop($dest);
+  }
+}]]></screen>
+
+    <para>We can see that we use the <literal>action</literal> keyword (instead of
+    <literal>function</literal>) to define the new procedure. This makes it possible to
+    invoke reconfiguration actions in the body (which is forbidden to simple functions).
+    The body of the action is trivial, but illustrate the if/then/else conditional
+    construct of FScript, which works like the corresponding C/Java construct. We also use
+    the two predefined actions <literal>start()</literal> and <literal>stop()</literal> to
+    actually modify the state of the <literal>$dest</literal> component.</para>
+
+  </sect1>
+
+  <sect1 id="copy-attributes">
+    <title>Using iteration to copy attribute values</title>
+
+    <para>The last helper procedure we need before we tackle the actual
+    <literal>replace()</literal> action is named <literal>copy-attributes()</literal>.
+    This action reproduces the values of the configuration attributes from a source
+    component to the attributes of another (destination) component.</para>
+
+    <para>Here is the code:</para>
+
+    <screen><![CDATA[
+-- Copies the value of all the attributes of component $src
+-- to the attributes of the same name in component $dest.
+action copy-attributes(src, dest) {
+  for oldAttr : $src/attribute::* {
+    newAttr = $dest/attribute::*[name(.) == name($oldAttr)];
+    set-value($newAttr, value($oldAttr));
+  }
+}]]></screen>
+
+    <para>This action makes use of a new FScript construct we have not seen yet: the
+    <literal>for</literal> loop. It is used to execute a block of code for each element of
+    a node-set, setting the current node in a local variable. Its syntax is similar to the
+    Java 5 enhanced loop: <literal>for <replaceable>var</replaceable> :
+    <replaceable>expression</replaceable> { <replaceable>body</replaceable> }</literal>.
+    Expression must be an FPath expression which returns a node-set. The body will be
+    executed once for each element of this set, with the current element available in the
+    variable <replaceable>var</replaceable>.</para>
+
+    <para>In the case of <literal>copy-attributes()</literal>, such a loop is required
+    because we do not know the list of attributes of the source component. The loop thus
+    selects all of them using the FPath expression <literal>$src/attribute::*</literal>.
+    For each of these attributes from the source component, the body of the loop first
+    selects the attribute of the same name on the destination component, and then uses the
+    <literal>set-value()</literal> primitive action to update its value to match the old
+    attribute's.</para>
+
+  </sect1>
+
+  <sect1 id="replace">
+    <title>Final result: the complete <function>replace()</function> action</title>
+
+    <para>With all these helpers in place, we can now tackle the definition of the actual
+    <literal>replace()</literal> action, following the outline we described at the
+    beginning of this tutorial:</para>
+
+    <orderedlist>
+      <listitem>
+        <para>Add the new component in the target architecture everywhere the old
+        component appeared.</para>
+      </listitem>
+
+      <listitem>
+        <para>Update all the bindings which involved interfaces from the old component to
+        use the corresponding interface on the new component instead.</para>
+      </listitem>
+
+      <listitem>
+        <para>Copy the values of the old component's attributes into the new
+        component's.</para>
+      </listitem>
+
+      <listitem>
+        <para>Make sure that the new component is in the same life-cycle state that the
+        old one.</para>
+      </listitem>
+
+      <listitem>
+        <para>Remove the old component from the architecture.</para>
+      </listitem>
+    </orderedlist>
+
+    <para>Here is the beginning of the <literal>replace()</literal> action:</para>
+
+    <screen><![CDATA[
+-- Replaces $oldComp with $newComp everywhere in the architecture.
+action replace(oldComp, newComp) {
+  -- Add the new component everywhere the old one is present.
+  for p : $oldComp/parent::* {
+    add($p, $newComp);
+  }
+]]></screen>
+
+    <para>There is nothing fundamentally new here: we define an
+    <emphasis>action</emphasis> named <literal>replace()</literal>, which takes two
+    arguments. Then we use a loop on all the parents <literal>$p</literal> of the old
+    component passed in argument in <literal>$oldComp</literal>. Inside the loop, we use
+    the <literal>add()</literal> action which we've not seen before. It corresponds to the
+    <literal>ContentController#addFcSubCompoent()</literal> method in Fractal, and adds a
+    component (the second argument, here <literal>$newComp</literal>) into a composite
+    (the first argument, here <literal>$p</literal>). This first section of
+    <literal>replace()</literal> thus adds <literal>$newComp</literal> into every direct
+    parent of the old component <literal>$oldComp</literal>.</para>
+
+    <para>The next thing to do is to update the bindings. We will do it in two steps.
+    First, updating the bindings <emphasis>from</emphasis> the old component:</para>
+
+    <screen><![CDATA[
+  -- Update all the bindings involving oldComp:
+  -- 1. Bindings from oldComp
+  for client : $oldComp/interface::*[client(.)][bound(.)] {
+    itfName = name($client);
+    server = $client/binding::*;
+    unbind($client);
+    bind($newComp/interface::$itfName, $server);
+  }]]></screen>
+
+    <para>The expression in the for loop uses two predicates to select the old component's
+    client interfaces which are bound (to anything). In the body of the loop, we remember
+    the name of the client interface and destination of the binding in variables, and then
+    use the <literal>unbind()</literal> and <literal>bind()</literal> primitive actions to
+    destroy the existing binding and create a new one from the new component's interface
+    of the same name. The <literal>unbind()</literal> and <literal>bind()</literal>
+    primitives correspond to the <literal>BindingController</literal>'s
+    <literal>unbindFc()</literal> and <literal>bindFc()</literal> methods in
+    Fractal.</para>
+
+    <para>The second part of the bindings updating deals with bindings
+    <emphasis>to</emphasis> the old component:</para>
+
+    <screen><![CDATA[
+  -- 2. Bindings to oldComp
+  for client : bindings-to($oldComp) {
+    itfName = name($client/binding::*); -- Match on the server side
+    unbind($client);
+    bind($client, $newComp/interface::$itfName);
+  }]]></screen>
+
+    <para>Here we make use of the <literal>bindings-to()</literal> helper function defined
+    earlier to select all the client interfaces connected to <literal>$oldComp</literal>.
+    We then rebind each of these client interfaces to the a server interface on
+    <literal>$newComp</literal>. To find the correct server interface to use, we stored in
+    <literal>$itfName</literal> the name of the original destination interface on
+    <literal>$oldComp</literal>. Of course, to do this we must follow the original
+    binding, so this must be done before we destroy it.</para>
+
+    <para>We can then simply call the two helper actions defined earlier to copy the
+    attributes and life-cycle state of the old component into the new one:</para>
+
+    <screen><![CDATA[
+  copy-attributes($oldComp, $newComp);
+  copy-state($oldComp, $newComp);]]></screen>
+
+    <para>The final thing to do is to <quote>cleanup</quote> after ourselves, by removing
+    the old component, which is now completely disconnected from the architecture and
+    replaced by the old one. The corresponding code is very simple, and symmetrical to the
+    first section of the action. It uses the <literal>remove()</literal> primitive action,
+    which corresponds to Fractal's
+    <literal>ContentController#removeFcSubComponent()</literal> method.</para>
+
+    <screen><![CDATA[
+  -- Remove the old component
+  for p : $oldComp/parent::* {
+    remove($p, $oldComp);
+  }
+}]]></screen>
+
+    <para>To finish this tutorial, here is the complete code for
+    <literal>replace()</literal>:</para>
+
+    <screen><![CDATA[
+-- Replaces $oldComp with $newComp everywhere in the architecture.
+action replace(oldComp, newComp) {
+  -- Add the new component everywhere the old one is present.
+  for p : $oldComp/parent::* {
+    add($p, $newComp);
+  }
+  -- Update all the bindings involving oldComp:
+  -- 1. Bindings from oldComp
+  for client : $oldComp/interface::*[client(.)][bound(.)] {
+    itfName = name($client);
+    server = $client/binding::*;
+    unbind($client);
+    bind($newComp/interface::$itfName, $server);
+  }
+  -- 2. Bindings to oldComp
+  for client : bindings-to($oldComp) {
+    itfName = name($client/binding::*); -- Match on the server side
+    unbind($client);
+    bind($client, $newComp/interface::$itfName);
+  }
+  copy-attributes($oldComp, $newComp);
+  copy-state($oldComp, $newComp);
+  -- Remove the old component
+  for p : $oldComp/parent::* {
+    remove($p, $oldComp);
+  }
+}]]></screen>
+
+  </sect1>
+
+</article>

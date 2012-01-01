@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN" "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>FPath Tutorial</title>
+    <author>
+      <firstname>Pierre-Charles</firstname>
+      <surname>David</surname>
+      <email>pcdavid@gmail.com</email>
+    </author>
+  </articleinfo>
+
+  <sect1 id="introduction">
+    <title>What is FPath?</title>
+
+    <para>FPath is a query language for software architectures, and especially
+    Fractal-based architectures (this document will only consider Fractal as a
+    target model). On other words, it is a Domain Specific Language (DSL) which
+    make it easy to navigate inside component systems built using Fractal, and
+    to find elements of the architecture (e.g. components) which match some
+    criterion.</para>
+
+    <para>The Fractal component model makes this kind of querying possible thanks to
+    its extensive support for reflection (and in particular introspection in
+    this case). However, because of the way the model is defined (as a
+    language-independent, minimalist API), it is not very easy to use: typically
+    you need to write several dozens of lines of Java even for conceptually
+    simple queries, and the result is usually not very readable. Consider the
+    following example program, in Java, which finds the attribute named
+    <literal>header</literal> in the <quote>Hello World</quote>s example Fractal
+    application, and returns its value:</para>
+
+    <programlisting><![CDATA[public Object getHeaderValue(Component root) {
+    try {
+        Object[] children = Fractal.getContentController(root).getFcSubComponents();
+        for (Object rawChild : children) {
+            Component kid = (Component) rawChild;
+            String name = "";
+            try {
+                name = Fractal.getNameController(kid).getFcName();
+            } catch (NoSuchInterfaceException nsie) {
+                continue;
+            }
+            if (name.equals("client")) {
+                try {
+                    Interface itf = (Interface) Fractal.getBindingController(kid).lookupFc("s");
+                    if (itf == null) {
+                        return null;
+                    }
+                    Component server = itf.getFcItfOwner();
+                    AttributeController ac = Fractal.getAttributeController(server);
+                    Class klass = ac.getClass();
+                    try {
+                        Method meth = null;
+                        try {
+                            meth = klass.getMethod("getHeader", null);
+                        } catch (NoSuchMethodException nime) {
+                            return null;
+                        }
+                        try {
+                            return meth.invoke(ac, null);
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    } catch (Exception e) {
+                        return null;
+                    }
+                } catch (NoSuchInterfaceException nsie) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    } catch (Exception _) {
+        return null;
+    }
+}]]></programlisting>
+
+    <para>Contrast these 45 lines of Java with the equivalent query in FPath:</para>
+
+    <programlisting>value($root/client/interface::s/binding::*/@header)</programlisting>
+
+    <para>The FPath syntax is roughly inspired by the XPath query language for
+    XML documents (hence the name). If you are familiar with XPath, the example
+    query above should not be too difficult to understand. Otherwise, don't
+    worry! This document will explain everything you need to know to read FPath
+    queries, and write your own.</para>
+
+  </sect1>
+
+  <sect1 id="setup">
+    <title>Installing the required components for the tutorial</title>
+
+    <sect2 id="obtaining">
+      <title>Installing FPath</title>
+
+      <para>FPath is implemented as part of the FScript language and project, itself
+      hosted in <ulink url="http://fractal.objectweb.org/">the Fractal top-level project
+      on OW2</ulink>.</para>
+
+      <para>FPath can be used from Java applications using a simple API, but in this
+      tutorial we will use the console application. It provides an easy-to-use interactive
+      shell to evaluate FPath queries. To actually follow this tutorial, you must install
+      both FScript itself and the interactive console application. See the <ulink
+      url="installing.html">installation instructions</ulink> on the dedicated
+      page.</para>
+
+    </sect2>
+
+    <sect2 id="comanche">
+      <title>Getting the example application</title>
+
+      <para>In order to illustrate FPath, we need a target Fractal application to
+      introspect and query. In this tutorial, we will use Comanche, the canonical example
+      Fractal application. Comanche is a minimalist HTTP server built by Éric Bruneton as
+      an example of how to create Fractal applications.</para>
+
+      <para>You can get a ready-to use JAR file with Comanche here: <ulink
+      url="comanche.jar">comanche.jar</ulink>. This version is slightly modified from the
+      standard one in the Fractal repository, so it is recommended you use this JAR if you
+      want to get the exact same results as shown in this document.</para>
+
+      <para><xref linkend="comanche-architecture"/> shows the architecture of the Comanche
+      application. It consists in two main components, the <emphasis>Frontend</emphasis>
+      and the <emphasis>Backend</emphasis>, wrapped in a top-level composite. The frontend
+      listens on a socket for incoming requests (<emphasis>Receiver</emphasis>) and sends
+      these requests to the back-end for processing, according to the policy defined in
+      the <emphasis>Scheduler</emphasis> component. The backend parses the requests it
+      receives (<emphasis>Analyzer</emphasis>), logs it (<emphasis>Logger</emphasis>) and
+      sends it to the <emphasis>Handler</emphasis> component which actually computes the
+      response. Inside the <emphasis>Handler</emphasis>, a <emphasis>Dispatcher</emphasis>
+      successively sends the request to all the actual handler components it is connected
+      to (e.g. <emphasis>FileHandler</emphasis>), until one of them can handle the
+      request.</para>
+
+      <figure id="comanche-architecture">
+        <title>The architecture of the Comanche HTTP server.</title>
+        <graphic fileref="images/comanche.png" align="center"/>
+      </figure>
+
+      <note>
+        <para>As you'll see in the following, the actual implementation of Comanche uses
+        different (much shorter) names for the components. For example, the
+        <emphasis>Dispatcher</emphasis> component in the figure is actually named
+        <literal>rd</literal> in the implementation (short for <quote>request
+        dispatcher</quote>).</para>
+      </note>
+
+    </sect2>
+  </sect1>
+
+  <sect1 id="setup">
+    <title>Setting up the example application</title>
+
+    <para>In this first section, we will instantiate an example Fractal application inside
+    the interactive console, so that we have something to query for the rest of the
+    tutorial.</para>
+
+    <sect2 id="launch">
+      <title>Launching the interactive console</title>
+
+      <para>In order to issue FPath queries and see their results, we will use the
+      interactive console application provided in the FScript project. The console is
+      actually just a normal client application which uses the Java APIs provided by
+      FScript, the same way your applications can. (If your goal is to use FPath and/or
+      FScript from your Java programs, first read this tutorial and <ulink
+      url="tutorial-fscript.xml">the FScript one</ulink>, and then go to <ulink
+      url="tutorial-apis.html">the Java APIs tutorial</ulink>.)</para>
+
+      <para>To start the console application, go to the directory where the two JARs you
+      downloaded earlier are (<literal>fscript-full.jar</literal> and
+      <literal>comanche.jar</literal>), and the issue the following command:</para>
+
+      <screen>
+<prompt>%</prompt> <userinput>java -jar fscript-full.jar</userinput>
+<computeroutput>FScript console.
+
+Useful commands:
+- type ':help' for a list of available commands
+- type ':help &lt;cmd&gt;' for detailed help on a specific command
+- type ':quit' to exit
+
+<prompt>FScript&gt;</prompt></computeroutput></screen>
+
+      <para>You should be greeted by the FScript console's prompt. As you can see from the
+      welcome message, the console understands a few commands like
+      <literal>:help</literal> and <literal>:quit</literal>. These are
+      <emphasis>not</emphasis> part of the FPath language, but special commands to control
+      the console application itself. We'll explain a few of these in this tutorial, but
+      you can enter <literal>:help</literal> at the prompt to get a complete list.</para>
+
+    </sect2>
+
+    <sect2 id="new-comanche">
+      <title>Creating the example application</title>
+
+      <para>Before we can create an instance of Comanche to play with, we need to add the
+      JAR to the console's classpath. Remember that when we started the console, we
+      launched the <literal>fscript-full.jar</literal> JAR directly, with nothing else in
+      the classpath. You can add a new entry to the console's classpath using the
+      <literal>:classpath_add</literal> console command:</para>
+
+      <screen><prompt>FScript&gt;</prompt> <userinput>:classpath_add file:///full/path/to/comanche.jar</userinput>
+<computeroutput>Classpath updated.</computeroutput></screen>
+
+      <para>The argument passed to the command can be any URL which Java understands. For
+      local files, use a <literal>file://</literal> URL.</para>
+
+      <para>Now that all the required code and ADL definitions are available, we can
+      create an instance of Comanche:</para>
+
+      <screen><prompt>FScript&gt;</prompt> <userinput>c = adl-new('comanche.Comanche');</userinput>
+<computeroutput>=> #&lt;component: comanche.Comanche&gt;</computeroutput>
+<computeroutput>Success (took 524 ms).</computeroutput></screen>
+
+      <para>This command invokes the <literal>adl-new()</literal> primitive operation with
+      the name of the Fractal ADL component definition to instantiate, and stores the
+      result in a variable named <literal>c</literal>. Note that this line is actually not
+      an FPath expression, but an FScript statement. The difference is that FPath
+      expressions can not have any side-effect: they can't modify the target architecture
+      (only introspect them), and they can't even bind new variables. As we need to create
+      a Comanche instance to have something to introspect, we need to use FScript (a
+      super-set of FPath) to begin. Most of the rest of this tutorial is pure FPath, but
+      we'll sometimes use FScript statements to define variables from the result of FPath
+      queries.</para>
+
+      <para>Once it has executed the statement above, creating a new instance of Comanche,
+      the console tells us how must time it took, and prints the value of the statement.
+      In this case, the value is <literal>#&lt;component: comanche.Comanche&gt;</literal>,
+      which denotes a single <emphasis>component node</emphasis> named
+      <literal>comanche.Comanche</literal>. FPath uses a generic notion of
+      <emphasis>node</emphasis> to represent all the elements in a software architecture.
+      Different architectural models may define different kinds of nodes, depending on the
+      concepts they use. For example in the case of Fractal, there are three kinds of
+      nodes: <emphasis>component</emphasis> nodes (representing the Fractal components
+      themselves), <emphasis>interface</emphasis> nodes (their interfaces, be they
+      internal or external, client or server, etc.), and <emphasis>attribute</emphasis>
+      nodes (representing the configuration attributes defined by the components'
+      <literal>attribute-controller</literal>).</para>
+
+    </sect2>
+
+  </sect1>
+
+  <sect1 id="basics">
+    <title>FPath basics: nodes, properties and simple navigation</title>
+
+    <sect2>
+      <title>Component Nodes</title>
+
+      <para>We now have everything set up correctly to actually issue FPath queries to
+      introspect Comanche.</para>
+
+      <para>The first thing we can try is to look a the variable we have just defined
+      above. To get the value of a variable, simply prefix its name with a dollar sign
+      (<literal>$</literal>): </para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c</userinput>
+<computeroutput>=&gt; #&lt;component: comanche.Comanche&gt;</computeroutput></screen>
+
+      <para>This is a node which represents the top-level component of the Comanche
+      application. Each kind of node in FPath defined a set of named properties, which
+      have primitive values: strings, numbers, booleans, etc. In the case of Fractal, the
+      component nodes have two properties: a <emphasis>name</emphasis>, and a
+      <emphasis>state</emphasis>. We can get the values of these properties by using the
+      function of the same name:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>name($c)</userinput>
+<computeroutput>=&gt; "comanche.Comanche"</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>state($c)</userinput>
+<computeroutput>=&gt; "STOPPED"</computeroutput></screen>
+
+      <para>The results correspond to what you would get from Fractal's
+      <literal>NameController#getFcName()</literal> and
+      <literal>LifeCycleController#getFcState()</literal> methods.</para>
+
+      <para>Let's now look at the content of this component:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::*</userinput>
+<computeroutput>=&gt; a node-set with 2 element(s):
+#&lt;component: be&gt;   #&lt;component: fe&gt;</computeroutput></screen>
+
+      <para>The expression <literal>$c/child::*</literal> is our first example of an
+      actual <emphasis>path expression</emphasis>. It selects all the (direct) children of
+      component <literal>$c</literal>, and returns them in a node-set. In this case, the
+      result is a set of two components (more precisely two nodes representing the
+      components) named <literal>fe</literal> and <literal>be</literal>. These correspond
+      to the <emphasis>Frontend</emphasis> (<literal>fe</literal>) and
+      <emphasis>Backend</emphasis> (<literal>be</literal>) components, which are indeed
+      the two direct sub-components of the Comanche top-level (see <xref
+      linkend="comanche-architecture"/>).</para>
+
+      <para>A path expression is made of a sequence of <emphasis>steps</emphasis>,
+      separated by slashes (<literal>/</literal>). Here there are only two
+      (<literal>$c</literal> and <literal>child::*</literal>), but we can chain more to
+      extend the query. For example, to get the children's children:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::*/child::*</userinput>
+<computeroutput>=&gt; a node-set with 5 element(s):
+#&lt;component: l&gt;    #&lt;component: ra&gt;   #&lt;component: rh&gt;
+#&lt;component: rr&gt;   #&lt;component: s></computeroutput></screen>
+
+      <para>The result is a set of 5 components, containing the direct children of both
+      the frontend and the backend.</para>
+
+      <para>The first step in a path is the starting point of the query, and must evaluate
+      to a node or set of nodes. Here <literal>$c</literal> evaluates to the top-level
+      Comanche component. The next steps are then evaluated in sequence, taking as input
+      the result of the previous step, and producing a set of nodes. The result of the
+      whole query is the result of the last step.</para>
+
+      <para>To understand how the last query works, you can read it like this: <quote>From
+      the node (or node-set) in <literal>$c</literal>, first select all its children
+      (<literal>fe</literal> and <literal>be</literal>). For each element of this
+      intermediary result, select all of <emphasis>their</emphasis> children, put them
+      together (both <literal>fe</literal>'s and <literal>be</literal>'s children) in a
+      set, and return the result.</quote></para>
+
+      <para>The star in <literal>child::*</literal> means: <quote>select
+      <emphasis>all</emphasis> the children</quote>. If you are only interested by a
+      particular child, you can specify its name in place of the star. For example:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::fe/child::*</userinput>
+<computeroutput>=&gt; a node-set with 2 element(s):
+#&lt;component: rr&gt; #&lt;component: s&gt;</computeroutput></screen>
+
+      <para>Here the first step of the path selected only the frontend instead of both the
+      frontend and backend. The final results thus contains only the frontend's
+      children.</para>
+
+    </sect2>
+
+    <sect2>
+      <title>Interface Nodes</title>
+
+      <para>Until now, we've only seen components, but of course a Fractal architecture
+      contains other interesting elements. FPath defines three kinds of nodes to model
+      Fractal architectures: <emphasis>component</emphasis>, which we've seen,
+      <emphasis>interfaces</emphasis>, and <emphasis>attributes</emphasis>.</para>
+
+      <para>If instead of selecting the sub-components of <literal>$c</literal> we want to
+      see its external interfaces, we can use the following query:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/interface::*</userinput>
+<computeroutput>=&gt; a node-set with 7 element(s):
+#&lt;interface: comanche.Comanche.binding-controller&gt;   #&lt;interface: comanche.Comanche.component&gt;
+#&lt;interface: comanche.Comanche.content-controller&gt;   #&lt;interface: comanche.Comanche.lifecycle-controller&gt;
+#&lt;interface: comanche.Comanche.name-controller&gt;      #&lt;interface: comanche.Comanche.r&gt;
+#&lt;interface: comanche.Comanche.super-controller&gt;</computeroutput></screen>
+
+      <para>Here we see that the result is still a set of nodes, but this time the nodes
+      represents the component's (external) interfaces. As before, we can select a
+      specific interface, for example the <literal>r</literal> interface, by its name.
+      We'll store it in a new variable so we can reference it later:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>r = $c/interface::r;</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;interface: comanche.Comanche.r&gt;
+Success (took 2 ms).</computeroutput></screen>
+
+      <para>Component nodes had only two properties (<literal>name()</literal> and
+      <literal>state()</literal>. Interface nodes have six of them, which give access to
+      everything you may want to know about an interface. These correspond to all the
+      properties defined in both Fractal <literal>Interface</literal> and
+      <literal>InterfaceType</literal> interfaces. Here are their value for the interface
+      <literal>$r</literal>:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>name($r)</userinput>
+<computeroutput>=&gt; "r"</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>internal($r)</userinput>
+<computeroutput>=&gt; false</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>signature($r)</userinput>
+<computeroutput>=&gt; "java.lang.Runnable"</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>collection($r)</userinput>
+<computeroutput>=&gt; false</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>optional($r)</userinput>
+<computeroutput>=&gt; false</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>client($r)</userinput>
+<computeroutput>=&gt; false</computeroutput></screen>
+
+    </sect2>
+
+    <sect2>
+      <title>Attribute Nodes</title>
+
+      <para>The third and final kind of node used in FPath represents configuration
+      attributes, as defined by the components' <literal>attribute-controller</literal>
+      interface. Let's select one and see what properties it has:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>p = $c/child::fe/child::s/attribute::poolSize;</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;attribute: s.poolSize&gt;
+Success (took 2 ms).</computeroutput></screen>
+
+      <para>Here we select (and store in a new variable <literal>$p</literal>) the
+      attribute named <literal>poolSize</literal> from the <emphasis>Scheduler</emphasis>
+      component (simply named <literal>s</literal> in the implementation), which is itself
+      a child of the frontend <literal>fe</literal>. Its properties are the
+      following:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>name($p)</userinput>
+<computeroutput>=&gt; "poolSize"</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>type($p)</userinput>
+<computeroutput>=&gt; "int"</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>value($p)</userinput>
+<computeroutput>=&gt; 0</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>readable($p)</userinput>
+<computeroutput>=&gt; true</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>writable($p)</userinput>
+<computeroutput>=&gt; true</computeroutput></screen>
+
+      <para>We've now seen seen all the kinds of nodes available in FPath, and introduced
+      the basics of navigation. The next section will explain more of the underlying
+      principles, and introduce more sophisticated ways to navigate inside Fractal
+      architectures.</para>
+    </sect2>
+  </sect1>
+
+  <sect1 id="axes">
+    <title>Navigation axes</title>
+
+    <para>In the previous section, we've seen that FPath models software architectures
+    using <emphasis>nodes</emphasis> to represent the elements of interest (components,
+    interfaces and attributes in the case of Fractal). By themselves, nodes can only model
+    individual elements, and do not give us any information on the actual structure of the
+    system. To represent the structure, FPath connects the nodes using directed arcs. The
+    result is that, from FPath's point of view, a software architecture is a directed
+    graph. The vertices of this graph are the nodes we've already seen, and the edges are
+    labelled arcs between these nodes, which represent their relationships.</para>
+
+    <para>The different kinds of relationships which can exist between nodes are called
+    <emphasis>axes</emphasis>, and are the basic mechanism for navigation in FPath. We've
+    actually already met three axes in the previous section: <literal>child</literal>,
+    <literal>interface</literal> and <literal>attribute</literal>:</para>
+
+    <itemizedlist>
+      <listitem><para><literal>child</literal> labels arcs which connect composite nodes
+      to the nodes representing their direct sub-component</para></listitem>
+      <listitem><para><literal>interface</literal> labels arcs which connect component
+      nodes to the nodes representing its external interfaces</para></listitem>
+      <listitem><para><literal>attribute</literal> labels arcs which connect component
+      nodes to the nodes representing its configuration attributes</para></listitem>
+    </itemizedlist>
+
+    <para>With this information, we can now understand in more details what the queries
+    from the previous section do. When we write <literal>$c/child::*</literal>, it
+    actually means: <quote>From the node(s) in variable <literal>$c</literal>, traverse
+    all the arcs in the graph labelled <literal>child</literal>, and return the nodes at
+    the other end.</quote> Each step in a path <quote>walks</quote> along the
+    corresponding axis in the graph, returning the destination nodes at the other end of
+    the arcs.</para>
+
+    <sect2>
+      <title>Other primitive axes</title>
+
+      <para>FPath provides several other axes to navigate in Fractal architecture. The
+      so-called <emphasis>primitive</emphasis> axes presented in this section correspond
+      to relationships directly available in Fractal. In addition to the
+      <literal>child</literal>, <literal>interface</literal> and
+      <literal>attribute</literal> axes we've already seen, these are:</para>
+
+      <itemizedlist>
+        <listitem>
+          <para>The <literal>parent</literal>axis is the inverse of
+          <literal>child</literal>, and connects a component node to its direct parents.
+          For example:</para>
+
+          <screen>
+<prompt>FScript&gt;</prompt> <userinput>fe = $c/child::fe;</userinput>
+<computeroutput>=&gt;  a node-set with 1 element(s):
+#&lt;component: fe&gt;
+Success (took 1 ms).</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>$fe/parent::*</userinput>
+<computeroutput>=&gt;  a node-set with 1 element(s):
+#&lt;component: comanche.Comanche&gt;
+Success (took 1 ms).</computeroutput></screen>
+
+        </listitem>
+
+        <listitem>
+          <para>The <literal>internal-interface</literal> axis is the equivalent of the
+          <literal>interface</literal> axis, but for internal interfaces instead of
+          external ones:</para>
+
+          <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/internal-interface::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;interface: comanche.Comanche.r&gt;</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>$fe/child::s/internal-interface::*</userinput>
+<computeroutput>=&gt; a node-set with 0 element(s):</computeroutput></screen>
+
+          <para>As can be seen from the second query above, using this axis on a primitive
+          component (which can not have internal interfaces) is not an error, but simply
+          returns an empty result.</para>
+        </listitem>
+
+        <listitem>
+          <para>The <literal>component</literal> is a little special: it connects
+          interfaces and attributes nodes to their owner component, and component nodes to
+          themselves. Basically, from any kind of node, <literal>component::*</literal>
+          can be used to go back to a well known place:</para>
+
+          <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/component::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;component: comanche.Comanche&gt;</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>$c/interface::*/component::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;component: comanche.Comanche&gt;</computeroutput>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::fe/child::s/attribute::poolSize/component::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;component: s&gt;</computeroutput></screen>
+
+        </listitem>
+
+        <listitem>
+          <para>Finally, the <literal>binding</literal> axis connects a node representing
+          a client interface to the node representing the server interface it is bound to,
+          is any. It is almost always used in the form <literal>binding::*</literal>. For
+          example:</para>
+
+          <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/internal-interface::r/binding::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;interface: fe.r&gt;</computeroutput></screen>
+
+          <para>This tells us that the interface named <literal>r</literal> of the
+          top-level Comanche component is actually provided internally by the (server)
+          interface of the same name of the frontend. Similarly:</para>
+
+          <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::be/child::ra/interface::rh/binding::*</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;interface: rh.rh&gt;</computeroutput></screen>
+
+          <para>tells us that the request analyzer component (<literal>ra</literal>) is
+          bound to the request handler (<literal>rh</literal>) through an interface called
+          <literal>rh</literal> (on both sides).</para>
+        </listitem>
+
+      </itemizedlist>
+    </sect2>
+
+    <sect2>
+      <title>Derived axes</title>
+
+      <para>In addition to the primitive axes described in the previous section, FPath
+      provides other axes which are <emphasis>derived</emphasis> from these, and greatly
+      improve the power of FPath as a query language.</para>
+
+      <para>First, the <literal>child</literal> and <literal>parent</literal> axes have
+      transitive versions respectively called <literal>descendant</literal> and
+      <literal>ancestor</literal>. Whereas <literal>child</literal> (resp.
+      <literal>parent</literal>) only gives access to the <emphasis>direct</emphasis>
+      sub-components (resp. super-components), the transitive version
+      <literal>descendant</literal> (resp. <literal>ancestor</literal>) gives access to
+      <emphasis>all</emphasis> the sub-components (resp. super-components),
+      recursively.</para>
+
+      <para>This is very useful when you want to find a component by name, but do not know
+      exactly where it is in the architecture. For example, to find the logger component
+      <literal>l</literal> in Comanche:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant::l</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;component: l&gt;</computeroutput></screen>
+
+      <para>and all its ancestors:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant::l/ancestor::*</userinput>
+<computeroutput>=&gt; a node-set with 2 element(s):
+#&lt;component: be&gt; #&lt;component: comanche.Comanche&gt;</computeroutput></screen>
+
+      <para>These two axes also exist in <emphasis>reflective and transitive</emphasis>
+      versions, named <literal>descendant-or-self</literal> and
+      <literal>ancestor-or-self</literal>. The difference is that the starting nodes are
+      also included in the result. <literal>descendant-or-self</literal> is particularly
+      useful to select <emphasis>all</emphasis> the components in an architecture in
+      one step:</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant-or-self::*</userinput>
+<computeroutput>=&gt; a node-set with 11 element(s):
+#&lt;component: be&gt;  #&lt;component: comanche.Comanche&gt; #&lt;component: erh&gt; #&lt;component: fe&gt;
+#&lt;component: frh&gt; #&lt;component: l&gt;                 #&lt;component: ra&gt;  #&lt;component: rd&gt;
+#&lt;component: rh&gt;  #&lt;component: rr&gt;                #&lt;component: s&gt;</computeroutput></screen>
+
+      <para>One final derived axis is <literal>sibling</literal>: it connects a component
+      node to all the other components in the architecture which share at least one parent
+      with it (including itself).</para>
+
+      <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::fe/sibling::*</userinput>
+<computeroutput>=&gt; a node-set with 2 element(s):
+#&lt;component: be&gt;  #&lt;component: fe&gt;</computeroutput></screen>
+
+    </sect2>
+
+  </sect1>
+
+  <sect1 id="predicates">
+    <title>Filtering predicates</title>
+
+    <para>Until now, we've been using axes in a very coarse-grained way. We can either
+    select an element by name (as in <literal>child::fe</literal>) or all the elements at
+    the end of an axis (as in <literal>child::*</literal>). FPath supports a mechanism of
+    <emphasis>filtering predicates</emphasis> which allow for much more powerful queries.
+    At each step in a path, we can add one or several predicate expressions, put between
+    brackets, which can filter candidate nodes according to their properties.</para>
+
+    <para>For example, <literal>$c/child::*[name(.) == 'fe']</literal> is equivalent to
+    <literal>$c/child::fe</literal>. <literal>$c/child::*</literal> by itself would select
+    all the sub-components of <literal>$c</literal>, but the filter expression retains
+    only the one(s) whose name is <literal>fe</literal>.</para>
+
+    <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/child::*[name(.) == 'fe']</userinput>
+<computeroutput>=&gt; a node-set with 1 element(s):
+#&lt;component: fe&gt;</computeroutput></screen>
+
+    <para>Inside the brackets, the dot (<literal>.</literal>) represents the implicit
+    argument to the predicate, i.e. the candidate node being tested. The predicate
+    expression is evaluated for each candidate node, and if the result is true, the node
+    is selected to be part of the result; otherwise it is removed from the
+    result-set.</para>
+
+    <para>With this mechanism, we can for select all the (external)
+    <emphasis>client</emphasis> interfaces from any component in the architecture:</para>
+
+    <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant-or-self::*/interface::*[client(.)]</userinput>
+<computeroutput>=&gt; a node-set with 8 element(s):
+#&lt;interface: fe.rh&gt;   #&lt;interface: ra.l&gt;    #&lt;interface: ra.rh&gt;   #&lt;interface: rd.h0&gt;   #&lt;interface: rd.h1&gt;   #&lt;interface: rd.h&gt;
+#&lt;interface: rr.rh&gt;   #&lt;interface: rr.s&gt;</computeroutput></screen>
+
+    <para>or maybe select interfaces according to their signature:</para>
+
+    <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant-or-self::*/interface::*[signature(.) == "java.lang.Runnable"]</userinput>
+<computeroutput>=&gt; a node-set with 3 element(s):
+#&lt;interface: comanche.Comanche.r&gt;   #&lt;interface: fe.r&gt;   #&lt;interface: rr.r&gt;</computeroutput></screen>
+
+    <para>The expression used as a predicate can be any FPath expression, including a
+    path. Let's say we want to find the components which provide configuration attributes:</para>
+
+    <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant-or-self::*[./attribute::*]</userinput>
+<computeroutput>=&gt; a node-set with 2 element(s):
+#&lt;component: frh&gt;   #&lt;component: s&gt;</computeroutput></screen>
+
+    <para>The expression in the brackets is a relative path, which starts with the
+    candidate node to test (<literal>.</literal>). It returns a set of attributes nodes,
+    which will be empty if the starting node does not have any attribute. When used in a
+    predicate, a node-set is considered true if and only if it is not-empty, so the end
+    result is that only the components which have at least one attribute are selected by
+    the predicate.</para>
+
+  </sect1>
+
+  <sect1 id="sets">
+    <title>Using set operations</title>
+
+    <para>FPath also supports three standard set operations to combine the results of
+    queries:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>To take the <emphasis>union</emphasis> of the node-sets, you can use the
+        <quote>pipe</quote> operator <literal>|</literal>, or the
+        <literal>union()</literal> function (they are equivalent).</para>
+      </listitem>
+      <listitem>
+        <para>To take the <emphasis>intersection</emphasis> of the node-sets, you can use
+        the <literal>&amp;</literal> operator, or the equivalent
+        <literal>intersection()</literal> function.</para>
+      </listitem>
+      <listitem>
+        <para>Finally, to take the <emphasis>difference</emphasis> of the node-sets, you
+        can use the <quote>backslash</quote> operator <literal>\</literal>, or the
+        equivalent <literal>difference()</literal> function.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>For example, to check that <literal>descendant-or-self</literal> is actually the
+    reflective version of <literal>descendant</literal>:</para>
+
+    <screen>
+<prompt>FScript&gt;</prompt> <userinput>$c/descendant-or-self::* == ($c/descendant::* | $c)</userinput>
+<computeroutput>=&gt; true</computeroutput></screen>
+
+  </sect1>
+
+  <sect1 id="shortcuts">
+    <title>Shortcut notation</title>
+
+    <para>FPath 2.0 now supports a few shortcut notations for the most commonly used axes.
+    We have not used them in this tutorial to show the language mechanisms more
+    explicitly, but they make complex queries much easier to write and to read:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>The <literal>child</literal> axis is the default when none is specified, so
+        <literal>$c/child::fe/child::*</literal> can be shortened to
+        <literal>$c/fe/*</literal>.</para>
+      </listitem>
+
+      <listitem>
+        <para>The <literal>attribute</literal> axis can be shortened to
+        <literal>@</literal>, so
+        <literal>$c/child::fe/child::s/attribute::poolSize</literal> can be written more
+        simply <literal>$c/fe/s/@poolSize</literal> (this also works with
+        <literal>@*</literal>).</para>
+      </listitem>
+
+      <listitem>
+        <para>The <literal>parent</literal> axis can be shortened to
+        <literal>..</literal>, but only when used in the form
+        <literal>parent::*</literal>, i.e. <literal>$fe/../interface::r</literal> instead
+        of <literal>$fe/parent::*/interface::r</literal>.</para>
+      </listitem>
+
+      <listitem>
+        <para>Finally, the <literal>descendant-or-self</literal> axis can be shortened to
+        <literal>/</literal>, giving <literal>//</literal> as a separator for steps:
+        <literal>$c//s</literal> instead of <literal>$c/descendant-or-self::s</literal>,
+        and even <literal>$c//*[./@*]</literal> instead of
+        <literal>$c/descendant-or-self::*[./attribute::*]</literal>.</para>
+      </listitem>
+
+    </itemizedlist>
+  </sect1>
+
+</article>

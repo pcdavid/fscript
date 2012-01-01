@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2004-2005 Universite de Nantes (LINA)
- * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2007-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,56 +18,39 @@
  */
 package org.objectweb.fractal.fscript.console;
 
-import org.objectweb.fractal.api.Component;
-import org.objectweb.fractal.api.NoSuchInterfaceException;
-import org.objectweb.fractal.fscript.FScriptInterpreter;
-import org.objectweb.fractal.fscript.Values;
-import org.objectweb.fractal.fscript.nodes.NodeImpl;
-import org.objectweb.fractal.util.Fractal;
+import org.objectweb.fractal.api.Interface;
+import org.objectweb.fractal.fscript.FScript;
+import org.objectweb.fractal.fscript.model.fractal.InterfaceNode;
 
+/**
+ * This command invokes a <code>Runnable</code> service interface from a component. in a separate
+ * thread.
+ * 
+ * @author Pierre-Charles David
+ */
 public class RunCommand extends AbstractCommand {
-	public RunCommand(Console console, FScriptInterpreter fscript) {
-		super(console, fscript);
-	}
+    public void execute(String args) throws Exception {
+        Object result = engine.execute(args);
 
-	public String getName() {
-		return "run";
-	}
+        InterfaceNode itfNode = (InterfaceNode) FScript.getSingleNode(result);
+        if (itfNode == null) {
+            showError("Invalid expression value. Should return a Runnable interface node.");
+            showResult(result);
+            return;
+        }
 
-	public String getDescription() {
-		return "Launches a component using one of its 'Runnable' interfaces.";
-	}
+        Interface itf = itfNode.getInterface();
+        if (!(itf instanceof Runnable)) {
+            showError("This interface node is not a Runnable.");
+            showResult(result);
+            showMessage("Interface signature: " + itfNode.getSignature());
+            return;
+        }
 
-	public void execute(String args) throws Exception {
-		int sep = args.indexOf(' ');
-		final String itf;
-		final String expr;
-		if (sep != -1) {
-			itf = args.substring(0, sep);
-			expr = args.substring(sep + 1);
-		} else {
-			itf = "run"; // Default interface name.
-			expr = args;
-		}
-		Object root = fscript.evaluate(expr, null);
-		Component rootC =((NodeImpl) Values.getSingleNode(root)).getComponent();
-		final Runnable run = (Runnable) rootC.getFcInterface(itf);
-		console.printMessage("Launching interface " + itf + " of component "
-				+ console.formattedValue(rootC) + ".");
-		boolean started;
-		try {
-			started = "STARTED".equals(Fractal.getLifeCycleController(rootC)
-					.getFcState());
-		} catch (NoSuchInterfaceException e) {
-			// Assume the component is in a runnable state.
-			started = true;
-		}
-		if (!started) {
-			console.printWarning("Component is not STARTED.");
-		}
-		Thread th = new Thread(run);
-		th.setDaemon(true); // FIXME Support real 'job control', especially
-							// shutdown.
-		th.start();
-	}
+        ensureComponentIsStarted(((InterfaceNode) itfNode).getInterface().getFcItfOwner());
+        showMessage("Launching interface " + result + ".");
+        Thread th = new Thread((Runnable) itf, "Service " + itfNode);
+        th.setDaemon(true);
+        th.start();
+    }
 }

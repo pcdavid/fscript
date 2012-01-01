@@ -1,0 +1,97 @@
+                                 ---
+                      FPath and FScript Features
+                                 ---
+                         Pierre-Charles David
+                                 ---
+
+FPath and FScript Features
+
+  Features which are new in the 2.0 version of FPath and FScript are
+  marked with <<[2.0]>>.
+
+* FPath
+
+  * <<Easy to use>> and to read syntax to navigate inside Fractal
+    architectures.
+
+  * <<Much shorter>> and less error-prone than the equivalent Java
+    code. A single line FPath expression can often replace several
+    pages of Java code when programming using the raw Fractal APIs.
+
+  * <<[2.0]>> Shortcut syntax for commonly used navigation axes. FPath
+    2.0 now supports several shortcuts similar to the XPath ones.
+
+  * Support for <<recursive navigation>>. The <<<descendant>>> and
+    <<<ancestor>>> navigation axes make it easy to write queries which
+    span an entire (sub-)architecture, however deep it is.
+
+  * Can be used as an <<independent and powerful query language>>.
+    Although FPath is defined as part of the FScript language, it can
+    be used independently as a general query language for Fractal
+    architectures.
+
+  * Full support for all the <<introspection features>> of the
+    standard Fractal model.
+
+  * <<[2.0]>> <<Extensible>>. The new implementation in version 2.0
+    makes it easy to add new kinds of architectural elements and
+    navigation axes.
+
+  * Easy to use <<Java APIs>>, and even easier to use <<interactive
+    console>>.
+
+* FScript
+
+  * Enables the definition of complex <<dynamic reconfigurations>> of
+    Fractal-based component architectures. FScript programs define
+    <reconfiguration actions> which can be applied to a Fractal
+    application to reconfigure its architecture dynamically.
+
+  * <<Easy to learn>>, with a scripting-language look and feel.
+    FScript has a familiar syntax and, except for the use of FPath,
+    looks and behaves a lot like a "normal" scripting language.
+
+  * <<Complements the Fractal ADL language>>.
+    {{{http://fractal.objectweb.org/fractaladl}Fractal ADL}} is a
+    powerful language to describe the initial architecture of an
+    application, but it only supports the static definitions. FScript
+    makes it easy to define how your architecture can evolve at
+    run-time.
+
+  * Seamlessly <<integrates the FPath language>> to select the
+    elements to reconfigure. FPath is actually a strict sub-language
+    of FScript.
+
+  * Can be used to safely <<extend FPath>> with new
+    functions/predicates. In addition to defining reconfiguration
+    actions, FScript can also define new <functions> which can the be
+    used in plain FPath expressions.
+
+  * <<Full support for all the reconfiguration>> features of the
+    standard Fractal model. All the primitive reconfiguration actions
+    available in
+
+  * Scripts can be made very <<specific>> to a particular architecture,
+    completely <<generic>>, or anything in between.
+
+  * Support for <<Fractal RMI>>. Pre-defined procedures are available
+    to bind, unbind and lookup remote Fractal components registered in
+    Fractal RMI registries.
+
+  * <<[2.0]>> <<Modular architecture>>. Version 2.0 of FScript is an
+    almost complete rewrite from version 1.0. FScript is now itself
+    implemented in Fractal, and features a modular and extensible
+    architecture.
+
+  * <<[2.0]>> <<Extensible>>. The new implementation can be extended
+    and re-targeted to other component models, be they Fractal
+    extensions of completely different models. The only constraint is
+    that they can be expressed in terms of a generic graph model.
+
+  * Can offer <<strong guarantees on the reliability of the
+    reconfigurations>>. FScript can be integrated with an extension of
+    Julia which offers transactional semantics (ACID properties) to
+    Fractal architectures reconfiguration. When using this Julia
+    extension, each top-level FScript reconfiguration is automatically
+    executed inside a transaction, and will benefit from these
+    features (perhaps most importantly Atomicity and Consistency).

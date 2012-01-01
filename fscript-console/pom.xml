@@ -1,54 +1,32 @@
 <?xml version="1.0"?>
-<!--
-* This library is free software; you can redistribute it and/or
-* modify it under the terms of the GNU Lesser General Public
-* License as published by the Free Software Foundation; either
-* version 2 of the License, or (at your option) any later version.
-*
-* This library is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License along with this library; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.objectweb.fractal.fscript</groupId>
     <artifactId>parent</artifactId>
-    <version>1.0.1</version>
+    <version>2.0</version>
   </parent>
 
-  <groupId>org.objectweb.fractal.fscript</groupId>
   <artifactId>fscript-console</artifactId>
-  <name>FPath and FScript interactive console</name>
-
-  <description>An simple shell-like console to introspect and manipulate Fractal
-  architectures using FPath and FScript.</description>
-
-  <scm>
-    <connection>${scm.connection}/fscript/fscript-console</connection>
-    <developerConnection>${scm.developerConnection}/fscript/fscript-console</developerConnection>
-    <url>${scm.url}/fscript/fscript-console</url>
-  </scm>
+  <name>FScript interactive console</name>
+  <description>A text console to interact with FPath and FScript.</description>
 
   <dependencies>
     <dependency>
       <groupId>org.objectweb.fractal.fscript</groupId>
       <artifactId>fscript</artifactId>
-      <version>1.0.1</version>
+      <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>jline</groupId>
       <artifactId>jline</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.common</groupId>
+      <artifactId>google-collect</artifactId>
     </dependency>
   </dependencies>
 
@@ -68,7 +46,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>org.objectweb.fractal.fscript.console.Console</mainClass>
+              <mainClass>org.objectweb.fractal.fscript.console.Main</mainClass>
             </manifest>
           </archive>
           <descriptorRefs>
@@ -78,4 +56,10 @@
       </plugin>
     </plugins>
   </build>
+
+  <scm>
+    <connection>${scm.connection}/fscript/fscript-console</connection>
+    <developerConnection>${scm.developerConnection}/fscript/fscript-console</developerConnection>
+    <url>${scm.url}/fscript/fscript-console</url>
+  </scm>
 </project>

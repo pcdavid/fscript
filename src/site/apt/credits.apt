@@ -1,0 +1,30 @@
+                                           ---
+                                   Credits and History
+                                           ---
+                                   Pierre-Charles David
+                                           ---
+
+Credits and Project History
+
+    The FPath and FScript languages have been mainly designed and implemented by
+    Pierre-Charles David. The first versions were developed in 2004-2005 during P.-C.
+    David's PhD Thesis at {{{http://www.emn.fr/}Ecole des Mines de Nantes}}, under the
+    direction of {{{http://www.emn.fr/ledoux}Thomas Ledoux}} and Pierre Cointe in the
+    {{{http://www.emn.fr/x-info/obasco}OBASCO Team}}. Further development was then funded
+    by {{{http://www.francetelecom.com/}France Télécom R&D}} during a post-doctorate
+    P.-C. David did in {{{mailto:Thierry.Coupaye@orange-ftgroup.com}Thierry Coupaye}}'s
+    team in 2005-2006. From Sept. 2006 to Feb. 2008, P.-C. David worked on FScript 2.0 as
+    a research engineer in the OBASCO team, funded by the
+    {{{http://sardes.inrialpes.fr/selfware}Selfware}} RNTL project.
+
+    Other people who contributed ideas or feedback to the FPath and FScript
+    project include:
+
+     * Marc Léger from France Télécom R&D and OBASCO.
+
+     * Romain Rouvoy from LIFL (at the time).
+
+     * Hervé Grall from OBASCO.
+
+     * Sylvain Sicard and Florent Métral from the {{{http://sardes.inrialpes.fr/}Sardes}}
+       team and the {{{http://sardes.inrialpes.fr/jade}Jade}} project at INRIA.

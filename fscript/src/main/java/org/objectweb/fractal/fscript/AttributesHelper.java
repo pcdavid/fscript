@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004-2005 Universite de Nantes (LINA)
  * Copyright (c) 2005-2006 France Telecom
- * Copyright (c) 2006-2007 ARMINES
+ * Copyright (c) 2006-2008 ARMINES
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Contact: Pierre-Charles David <pcdavid@gmail.com>
+ * Contact: fractal@objectweb.org
  */
 package org.objectweb.fractal.fscript;
 
@@ -35,8 +35,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.naming.OperationNotSupportedException;
-
 import org.objectweb.fractal.api.Component;
 import org.objectweb.fractal.api.NoSuchInterfaceException;
 import org.objectweb.fractal.api.control.AttributeController;
@@ -46,8 +44,25 @@ import org.objectweb.fractal.util.Fractal;
  * This class provides methods to discover and manipulate Fractal components attributes in
  * a generic way. It uses reflection to discover attributes, get and set attributes values
  * by name.
+ * <p>
+ * The attribute discovery process is done on creation, and uses reflection. Because it
+ * can be relatively costly, you should normally create only one
+ * <code>AttributeHelper</code> instance for each given <code>Component</code>.
+ * <p>
+ * Typical usage:
  * 
- * @author Pierre-Charles David <pcdavid@gmail.com>
+ * <pre>
+ * Component c = ...;
+ * AttributeHelper attr = new AttributeHelper(c);
+ * // Iterate on all the attributes and print their values: 
+ * for (String attrName : attr.getAttributesNames()) {
+ *   System.out.println(attrName + &quot; = &quot; + attr.getAttribute(attrName));
+ * }
+ * // Change the value of an attribute by name: 
+ * attr.setAttribute(&quot;foo&quot;, &quot;bar&quot;);
+ * </pre>
+ * 
+ * @author Pierre-Charles David
  */
 public class AttributesHelper {
     private final Component component;
@@ -97,14 +112,12 @@ public class AttributesHelper {
     /**
      * Matches an attribute reader method name.
      */
-    private static final Pattern GETTER_REGEX = Pattern.compile("^(get|is)(" + NAME_REGEX
-            + ")$");
+    private static final Pattern GETTER_REGEX = Pattern.compile("^(get|is)(" + NAME_REGEX + ")$");
 
     /**
      * Matches an attribute writer method name.
      */
-    private static final Pattern SETTER_REGEX = Pattern.compile("^set(" + NAME_REGEX
-            + ")$");
+    private static final Pattern SETTER_REGEX = Pattern.compile("^set(" + NAME_REGEX + ")$");
 
     /**
      * Introspect the target to discover all its configuration attributes and create the
@@ -114,9 +127,9 @@ public class AttributesHelper {
         Map<String, Method> readers = new HashMap<String, Method>();
         Map<String, Method> writers = new HashMap<String, Method>();
         for (Method meth : findAllAttributeMethods()) {
-            // TODO How to handle multiple readers or writers for a given name?
             // Multiple readers are possible if both 'get*' and 'is*' style readers are
-            // provided. Multiple writers are possible with overloading.
+            // provided. Multiple writers are possible with overloading. These cases are
+            // not handled.
             if (isReader(meth)) {
                 readers.put(getAttributeNameReadBy(meth), meth);
             } else if (isWriter(meth)) {
@@ -179,8 +192,7 @@ public class AttributesHelper {
      */
     private boolean isWriter(Method meth) {
         return SETTER_REGEX.matcher(meth.getName()).matches()
-                && (meth.getParameterTypes().length == 1)
-                && meth.getReturnType().equals(Void.TYPE);
+                && (meth.getParameterTypes().length == 1) && meth.getReturnType().equals(Void.TYPE);
     }
 
     private String getAttributeNameReadBy(Method meth) {
@@ -205,9 +217,6 @@ public class AttributesHelper {
         }
     }
 
-    // TODO What are the exact rules?
-    // Currently, returns all the methods of all the sub-interfaces of AttributeController
-    // which are implemented by the target.
     private Collection<Method> findAllAttributeMethods() {
         Set<Method> methods = new HashSet<Method>();
         for (Class<?> itf : getAttributeInterfaces()) {
@@ -269,20 +278,19 @@ public class AttributesHelper {
      * @throws NoSuchElementException
      *             if the target component does not have an attribute named
      *             <code>name</code>.
-     * @throws OperationNotSupportedException
+     * @throws UnsupportedOperationException
      *             if the target component has an attribute named <code>name</code> but
      *             it is not readable.
      */
     public Object getAttribute(String name) throws NoSuchElementException,
-            OperationNotSupportedException {
+            UnsupportedOperationException {
         Attribute attr = attributes.get(name);
         if (attr == null) {
             throw new NoSuchElementException("No attribute named " + name + ".");
         } else if (attr.isReadable()) {
             return attr.get();
         } else {
-            throw new OperationNotSupportedException("Attribute " + name
-                    + " is not readable.");
+            throw new UnsupportedOperationException("Attribute " + name + " is not readable.");
         }
     }
 
@@ -296,7 +304,7 @@ public class AttributesHelper {
      * @throws NoSuchElementException
      *             if the target component does not have an attribute named
      *             <code>name</code>.
-     * @throws OperationNotSupportedException
+     * @throws UnsupportedOperationException
      *             if the target component has an attribute named <code>name</code> but
      *             it is not writable.
      * @throws IllegalArgumentException
@@ -304,15 +312,14 @@ public class AttributesHelper {
      *             it is not type-compatible).
      */
     public void setAttribute(String name, Object value) throws NoSuchElementException,
-            OperationNotSupportedException, IllegalArgumentException {
+            UnsupportedOperationException, IllegalArgumentException {
         Attribute attr = attributes.get(name);
         if (attr == null) {
             throw new NoSuchElementException("No attribute named " + name + ".");
         } else if (attr.isWritable()) {
             attr.set(value);
         } else {
-            throw new OperationNotSupportedException("Attribute " + name
-                    + " is not readable.");
+            throw new UnsupportedOperationException("Attribute " + name + " is not readable.");
         }
     }
 
@@ -382,18 +389,23 @@ public class AttributesHelper {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
+        }
         final AttributesHelper other = (AttributesHelper) obj;
         if (component == null) {
-            if (other.component != null)
+            if (other.component != null) {
                 return false;
-        } else if (!component.equals(other.component))
+            }
+        } else if (!component.equals(other.component)) {
             return false;
+        }
         return true;
     }
 
@@ -415,7 +427,8 @@ public class AttributesHelper {
                 Class<?> readerType = reader.getReturnType();
                 Class<?> writerType = writer.getParameterTypes()[0];
                 if (!readerType.isAssignableFrom(writerType)) {
-                    // TODO Inconsistent typing. How to handle this?
+                    throw new IllegalArgumentException("Inconsistent typing between attribute "
+                            + "reader and writable: not supported.");
                 }
             }
         }
@@ -425,7 +438,6 @@ public class AttributesHelper {
         }
 
         public Class<?> getType() {
-            // FIXME Is this the correct priority?
             if (reader != null) {
                 return reader.getReturnType();
             } else {
@@ -447,8 +459,7 @@ public class AttributesHelper {
             } catch (IllegalAccessException e) {
                 throw new RuntimeException("Access control errors not handled.", e);
             } catch (InvocationTargetException ite) {
-                throw new RuntimeException("Error while reading attribute " + name + ".",
-                        ite);
+                throw new RuntimeException("Error while reading attribute " + name + ".", ite);
             }
         }
 
@@ -458,8 +469,7 @@ public class AttributesHelper {
             } catch (IllegalAccessException e) {
                 throw new RuntimeException("Access control errors not handled.", e);
             } catch (InvocationTargetException ite) {
-                throw new RuntimeException("Error while writing attribute " + name + ".",
-                        ite);
+                throw new RuntimeException("Error while writing attribute " + name + ".", ite);
             }
         }
     }

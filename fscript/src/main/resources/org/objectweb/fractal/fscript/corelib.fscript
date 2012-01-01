@@ -1,0 +1,33 @@
+// -*- c -*-
+
+function single(itf) {
+  return not(collection($itf));
+}
+
+function server(itf) {
+  return not(client($itf));
+}
+
+function mandatory(itf) {
+  return not(optional($itf));
+}
+
+function external(itf) {
+  return not(internal($itf));
+}
+
+function started(comp) {
+  return $comp/interface::lifecycle-controller && (state($comp) == "STARTED");
+}
+
+function stopped(comp) {
+  return $comp/interface::lifecycle-controller && (state($comp) == "STOPPED");
+}
+
+function bound(itf) {
+  return client($itf) && (size($itf/binding::*) > 0);
+}
+
+function controller-itf(itf) {
+  return matches(name($itf), '(component|.*-controller)');
+}

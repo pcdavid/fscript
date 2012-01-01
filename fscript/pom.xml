@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<!--
+* This library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public
+* License along with this library; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.objectweb.fractal.fscript</groupId>
+    <artifactId>parent</artifactId>
+    <version>1.0</version>
+  </parent>
+
+  <groupId>org.objectweb.fractal.fscript</groupId>
+  <artifactId>fscript</artifactId>
+  <version>1.0</version>
+  <name>FPath and FScript reference implementation</name>
+
+  <description>FScript is a scripting language dedicated to Fractal components
+  architectural reconfigurations. It also includes FPath, a notation inspired by
+  XPath which makes it easy to navigate inside Fractal architectures to discover
+  its strucutre or find elements (components or interfaces) which match certain
+  criterions.</description>
+
+  <scm>
+    <connection>${scm.connection}/fscript/fscript</connection>
+    <developerConnection>${scm.developerConnection}/fscript/fscript</developerConnection>
+    <url>${scm.url}/fscript/fscript</url>
+  </scm>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.objectweb.fractal</groupId>
+      <artifactId>fractal-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.fractaladl</groupId>
+      <artifactId>fractal-adl</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.fractalrmi</groupId>
+      <artifactId>fractal-rmi</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>antlr</groupId>
+      <artifactId>antlr</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.julia</groupId>
+      <artifactId>julia-runtime</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.julia</groupId>
+      <artifactId>julia-asm</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.julia</groupId>
+      <artifactId>julia-mixins</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.fractaladl.examples</groupId>
+      <artifactId>helloworld</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objectweb.fractal.fractaladl.examples</groupId>
+      <artifactId>comanche</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antlr-plugin</artifactId>
+        <configuration>
+          <grammars>lexer.g,fscript.g</grammars>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

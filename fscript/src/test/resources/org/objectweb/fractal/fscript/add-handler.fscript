@@ -1,0 +1,9 @@
+action add-handler(comanche, handler) {
+  rd = $comanche/descendant::rd;
+  add($rd/parent::*, $handler);
+  return cbind($rd, 'h', $handler/interface::rh);
+}
+
+function all-handlers(comanche) {
+  return $comanche/descendant::rd/interface::*[starts-with(name(.), 'h')];
+}

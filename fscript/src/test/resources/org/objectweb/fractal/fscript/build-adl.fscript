@@ -1,0 +1,16 @@
+action switch-adl-backend() {
+  adl = new("org.objectweb.fractal.adl.BasicFactory",
+            "fractaladl.backend",
+      	    "org.objectweb.fractal.adl.FractalBackend");
+  javaBackend = new("org.objectweb.fractal.adl.JavaBackend");
+  compiler = $adl/child::compiler;
+  fractalBackend = $adl/child::backend;
+  add($adl, $java);
+  for itf : $compiler/interface::*[client(.)] {
+    unbind($itf);
+    bind($itf, $javaBackend/interface::*[name(.) == name($itf)]);
+  }
+  remove($adl, $fractalBackend);
+  set-name($javaBackend, "backend");
+  return $adl;
+}

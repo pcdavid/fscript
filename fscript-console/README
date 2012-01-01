@@ -1,0 +1,29 @@
+FScript Console
+===============
+
+This project provides a simple console ("shell") to introspect and
+manipulate Fractal architectures using FPath and FScript.
+
+Quick steps to run the console:
+
+1. Make sure the artifacts for the FScript implementation and the
+   console itself are installed in your local Maven repository. In the
+   parent project, run:
+
+   % mvn install
+
+   This should install fscript-1.0.jar and fscript-console-1.0.jar
+   into your Maven repo.
+
+2. Build a self-contained JAR with the console and all its
+   dependencies:
+
+   % mvn assembly:assembly
+
+   This creates a JAR in the target/ directory including the console
+   and all the required dependencies.
+
+3. Run the application with your target components in the classpath:
+
+  % java -cp myapp.jar:target/fscript-console-1.0-jar-with-dependencies.jar \
+      org.objectweb.fractal.fscript.console.Console

@@ -1,0 +1,11 @@
+action replace-scheduler(comanche) {
+  fe = $comanche/child::fe;
+  rr = $fe/child::rr;
+  oldSched = $fe/child::s;
+  remove($fe, $oldSched);// Wrong order: should unbind before remove.
+  unbind($rr/interface::s[client(.)]);
+  sched = new('comanche.MultiThreadScheduler');
+  set-name($sched, 'new-sched');
+  add($fe, $sched);
+  bind($rr/interface::s, $sched/interface::s);
+}

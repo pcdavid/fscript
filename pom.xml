@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+<!--
+* This library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public
+* License as published by the Free Software Foundation; either
+* version 2 of the License, or (at your option) any later version.
+*
+* This library is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+* Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public
+* License along with this library; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.objectweb.fractal</groupId>
+    <artifactId>parent</artifactId>
+    <version>2.0</version>
+  </parent>
+
+  <groupId>org.objectweb.fractal.fscript</groupId>
+  <artifactId>parent</artifactId>
+  <name>FPath and FScript parent project</name>
+  <version>1.0</version>
+  <packaging>pom</packaging>
+
+  <description>FPath is a navigation and query language for Fractal
+  architectures, inspired by the XPath notation. FScript extends FPath to allow
+  the definition of architectural reconfiguration scripts.</description>
+
+  <url>http://fractal.objectweb.org/fscript</url>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.objectweb.fractal</groupId>
+        <artifactId>fractal-api</artifactId>
+        <version>2.0.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.fractaladl</groupId>
+        <artifactId>fractal-adl</artifactId>
+        <version>2.1.7</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.fractalrmi</groupId>
+        <artifactId>fractal-rmi</artifactId>
+        <version>0.3.6-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
+        <groupId>antlr</groupId>
+        <artifactId>antlr</artifactId>
+        <version>2.7.7</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.3.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.julia</groupId>
+        <artifactId>julia-runtime</artifactId>
+        <version>2.5.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.julia</groupId>
+        <artifactId>julia-asm</artifactId>
+        <version>2.5.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.julia</groupId>
+        <artifactId>julia-mixins</artifactId>
+        <version>2.5.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.fractaladl.examples</groupId>
+        <artifactId>helloworld</artifactId>
+        <version>2.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.objectweb.fractal.fractaladl.examples</groupId>
+        <artifactId>comanche</artifactId>
+        <version>2.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>jline</groupId>
+        <artifactId>jline</artifactId>
+        <version>0.9.91</version>
+      </dependency>
+
+    </dependencies>
+  </dependencyManagement>
+
+
+  <modules>
+    <module>fscript</module>
+    <module>fscript-console</module>
+  </modules>
+
+  <scm>
+    <connection>${scm.connection}/fscript</connection>
+    <developerConnection>${scm.developerConnection}/fscript</developerConnection>
+    <url>${scm.url}/fscript</url>
+  </scm>
+
+</project>

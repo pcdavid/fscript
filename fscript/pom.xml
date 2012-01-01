@@ -23,12 +23,12 @@
   <parent>
     <groupId>org.objectweb.fractal.fscript</groupId>
     <artifactId>parent</artifactId>
-    <version>1.0</version>
+    <version>1.0.1</version>
   </parent>
 
   <groupId>org.objectweb.fractal.fscript</groupId>
   <artifactId>fscript</artifactId>
-  <version>1.0</version>
+  <version>1.0.1</version>
   <name>FPath and FScript reference implementation</name>
 
   <description>FScript is a scripting language dedicated to Fractal components
